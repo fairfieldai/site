@@ -43,7 +43,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {children}
           <footer className="site-footer">
             <span className="coordinates">Fairfield, Connecticut · 41.14° N, 73.26° W</span>
-            <a href="mailto:hello@inbox.fairfieldct.ai">hello@inbox.fairfieldct.ai</a>
+            <nav className="footer-links" aria-label="Footer">
+              <Link href="/terms/">Terms</Link>
+              <Link href="/privacy/">Privacy</Link>
+              <a href="mailto:hello@inbox.fairfieldct.ai">hello@inbox.fairfieldct.ai</a>
+            </nav>
           </footer>
         </div>
         <Shoreline />
