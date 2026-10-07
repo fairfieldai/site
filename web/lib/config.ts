@@ -5,6 +5,8 @@ export interface SiteConfig {
   cognitoDomain: string;
   cognitoClientId: string;
   cognitoIssuer: string;
+  /** Discord application ID, for linking Discord accounts. Empty where linking is off. */
+  discordClientId?: string;
 }
 
 let config: Promise<SiteConfig> | undefined;

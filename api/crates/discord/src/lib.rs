@@ -7,7 +7,6 @@
 
 pub mod events;
 pub mod reminders;
-pub mod ssm;
 
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -22,6 +21,8 @@ use axum::{Json, Router};
 use lambda_http::tracing;
 use serde::Deserialize;
 use serde_json::{Value, json};
+
+use shared::links::LinkStore;
 
 use crate::events::{EventSource, next_meetup};
 
@@ -94,7 +95,21 @@ struct WebhookEventEnvelope {
 struct WebhookEventBody {
     #[serde(rename = "type")]
     kind: String,
+    #[serde(default)]
+    data: Option<WebhookEventData>,
 }
+
+#[derive(Deserialize)]
+struct WebhookEventData {
+    user: Option<DiscordUser>,
+}
+
+#[derive(Deserialize)]
+struct DiscordUser {
+    id: String,
+}
+
+const APPLICATION_DEAUTHORIZED: &str = "APPLICATION_DEAUTHORIZED";
 
 /// What the handlers share across requests.
 #[derive(Clone)]
@@ -102,6 +117,9 @@ pub struct AppState {
     pub verifier: Arc<Verifier>,
     pub events: Arc<dyn EventSource>,
     pub guild_id: String,
+    /// Every environment's Discord account links. Discord only sends webhook
+    /// events here (prod), so a deauthorized account's link is removed from each.
+    pub links: Vec<Arc<dyn LinkStore>>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -181,21 +199,47 @@ fn private(content: &str) -> Value {
 }
 
 async fn webhook_events(
-    State(AppState { verifier, .. }): State<AppState>,
+    State(state): State<AppState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    if !verifier.verify(&headers, &body) {
+    if !state.verifier.verify(&headers, &body) {
         return error(StatusCode::UNAUTHORIZED, "invalid request signature");
     }
     let Ok(envelope) = serde_json::from_slice::<WebhookEventEnvelope>(&body) else {
         return error(StatusCode::BAD_REQUEST, "invalid webhook event");
     };
-    // Discord's endpoint check is a type 0 ping; both need only a 204.
-    if envelope.kind == WEBHOOK_EVENT
-        && let Some(event) = envelope.event
-    {
-        tracing::info!(event = event.kind, "received Discord webhook event");
+    // Discord's endpoint check is a type 0 ping, which needs only a 204.
+    let Some(event) = envelope.event.filter(|_| envelope.kind == WEBHOOK_EVENT) else {
+        return StatusCode::NO_CONTENT.into_response();
+    };
+    tracing::info!(event = event.kind, "received Discord webhook event");
+    if event.kind != APPLICATION_DEAUTHORIZED {
+        return StatusCode::NO_CONTENT.into_response();
+    }
+    let Some(user) = event.data.and_then(|data| data.user) else {
+        return error(StatusCode::BAD_REQUEST, "deauthorization without a user");
+    };
+    // Discord retries failed deliveries, so any storage error returns 500
+    // after trying every store; removing an already-removed link is a no-op.
+    let mut failed = false;
+    for links in &state.links {
+        match links.remove_by_discord(&user.id).await {
+            Ok(removed) => {
+                tracing::info!(
+                    discord_user = user.id,
+                    removed = removed.is_some(),
+                    "removed Discord link"
+                );
+            }
+            Err(error) => {
+                tracing::error!(%error, discord_user = user.id, "couldn't remove Discord link");
+                failed = true;
+            }
+        }
+    }
+    if failed {
+        return error(StatusCode::INTERNAL_SERVER_ERROR, "couldn't remove link");
     }
     StatusCode::NO_CONTENT.into_response()
 }

@@ -37,12 +37,20 @@ export async function getUser(): Promise<User | null> {
   return user && !user.expired ? user : null;
 }
 
-export async function signIn(): Promise<void> {
-  await (await userManager()).signinRedirect();
+/** A same-site path to return to after sign-in, never another origin. */
+export function safeReturnPath(path: unknown): string {
+  return typeof path === "string" && path.startsWith("/") && !path.startsWith("//") ? path : "/";
 }
 
-export async function completeSignIn(): Promise<void> {
-  await (await userManager()).signinRedirectCallback();
+/** Signs in through Cognito, then returns to `returnTo` (a path on this site). */
+export async function signIn(returnTo = "/"): Promise<void> {
+  await (await userManager()).signinRedirect({ state: safeReturnPath(returnTo) });
+}
+
+/** Finishes sign-in and returns the path to go back to. */
+export async function completeSignIn(): Promise<string> {
+  const user = await (await userManager()).signinRedirectCallback();
+  return safeReturnPath(user.state);
 }
 
 export async function signOut(): Promise<void> {

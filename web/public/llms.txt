@@ -8,6 +8,7 @@ Key facts:
 - Contact: hello@inbox.fairfieldct.ai
 - Join: create a free account at https://www.fairfieldct.ai/ ("Join the community"), or join the Discord server at https://discord.gg/wC8UCHpXJj
 - Meetups: scheduled in the Discord server's Events and announced in its #announcements channel. In Discord, the /meetup command shows the next one.
+- Discord Member role: members who link their Discord account at https://www.fairfieldct.ai/connect/discord/ get the Member role through Discord's Linked Roles.
 - Planned activities: relaxed meetups about AI and technology (no expertise required), demo nights where members show what they're building, and hands-on learning sessions for using AI tools at work, school, and home.
 - Members must be 13 or older. Community guidelines: be respectful; no harassment, spam, or scams; don't share others' personal information; nothing illegal or sexually explicit; don't use AI-generated content to deceive.
 

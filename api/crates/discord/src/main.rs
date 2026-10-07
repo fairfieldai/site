@@ -2,9 +2,10 @@ use std::env;
 use std::sync::Arc;
 
 use discord::events::DiscordEvents;
-use discord::ssm::Parameter;
 use discord::{AppState, Verifier};
 use lambda_http::{Error, run, tracing};
+use shared::links::{DynamoLinks, LinkStore};
+use shared::ssm::Parameter;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -22,10 +23,19 @@ async fn main() -> Result<(), Error> {
         aws_sdk_ssm::Client::new(&config),
         env::var("DISCORD_BOT_TOKEN_PARAMETER")?,
     );
+    // Every environment's link table; Discord's webhook events only reach prod.
+    let dynamodb = aws_sdk_dynamodb::Client::new(&config);
+    let links = env::var("TABLE_NAMES")?
+        .split(',')
+        .map(|table| {
+            Arc::new(DynamoLinks::new(dynamodb.clone(), table.into())) as Arc<dyn LinkStore>
+        })
+        .collect();
     let state = AppState {
         verifier: Arc::new(verifier),
         events: Arc::new(DiscordEvents::new(guild_id.clone(), token)?),
         guild_id,
+        links,
     };
 
     run(discord::router(state)).await

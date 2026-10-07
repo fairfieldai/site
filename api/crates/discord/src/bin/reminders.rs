@@ -4,10 +4,10 @@ use std::env;
 
 use discord::events::{DiscordEvents, Webhook, parse_rfc3339};
 use discord::reminders;
-use discord::ssm::Parameter;
 use lambda_http::lambda_runtime::{LambdaEvent, run, service_fn};
 use lambda_http::{Error, tracing};
 use serde::Deserialize;
+use shared::ssm::Parameter;
 
 /// The schedule's input: `{"scheduled_time": "<aws.scheduler.scheduled-time>"}`.
 #[derive(Deserialize)]

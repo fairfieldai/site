@@ -11,7 +11,7 @@ export default function AuthCallback() {
 
   useEffect(() => {
     completeSignIn()
-      .then(() => router.replace("/"))
+      .then((returnTo) => router.replace(returnTo))
       .catch((reason: unknown) => setError(String(reason)));
   }, [router]);
 

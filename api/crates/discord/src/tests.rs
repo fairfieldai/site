@@ -9,6 +9,7 @@ use tower::ServiceExt;
 
 use super::{AppState, Verifier, decode_hex, router};
 use crate::events::{BoxFuture, EntityMetadata, EventSource, ScheduledEvent};
+use shared::links::{BoxFuture as LinkFuture, Link, LinkStore, MemoryLinks, SaveError};
 
 /// Scheduled events for /meetup, or an error.
 struct Events(Result<Vec<ScheduledEvent>, String>);
@@ -21,10 +22,23 @@ impl EventSource for Events {
 }
 
 fn state(verifier: Verifier, events: Result<Vec<ScheduledEvent>, String>) -> AppState {
+    state_with_links(
+        verifier,
+        events,
+        vec![std::sync::Arc::new(MemoryLinks::default())],
+    )
+}
+
+fn state_with_links(
+    verifier: Verifier,
+    events: Result<Vec<ScheduledEvent>, String>,
+    links: Vec<std::sync::Arc<dyn LinkStore>>,
+) -> AppState {
     AppState {
         verifier: std::sync::Arc::new(verifier),
         events: std::sync::Arc::new(Events(events)),
         guild_id: "9".into(),
+        links,
     }
 }
 
@@ -330,4 +344,108 @@ async fn meetup_failure_replies_privately() {
         content.starts_with("Sorry, I couldn't load meetups"),
         "{content}"
     );
+}
+
+fn link(user: &str, discord: &str) -> Link {
+    Link {
+        user_id: user.into(),
+        discord_id: discord.into(),
+        discord_username: "member".into(),
+        refresh_token: "refresh".into(),
+        linked_at: 0,
+    }
+}
+
+async fn deauthorize(links: Vec<std::sync::Arc<dyn LinkStore>>, discord_id: &str) -> StatusCode {
+    let signer = Signer::new();
+    let body = format!(
+        r#"{{"version":1,"application_id":"1","type":1,"event":{{"type":"APPLICATION_DEAUTHORIZED","timestamp":"2026-10-07T00:00:00Z","data":{{"user":{{"id":"{discord_id}","username":"member"}}}}}}}}"#
+    );
+    let signature = signer.sign(&body);
+    let state = state_with_links(signer.verifier(), Ok(vec![]), links);
+    send(state, "/api/discord/events", &body, Some(&signature))
+        .await
+        .0
+}
+
+#[tokio::test]
+async fn deauthorizing_the_app_removes_the_link_in_every_environment() {
+    let prod = std::sync::Arc::new(MemoryLinks::with([link("u1", "d1"), link("u2", "d2")]));
+    let dev = std::sync::Arc::new(MemoryLinks::with([link("dev-u1", "d1")]));
+    let status = deauthorize(vec![prod.clone(), dev.clone()], "d1").await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(prod.all(), [link("u2", "d2")]);
+    assert_eq!(dev.all(), []);
+}
+
+#[tokio::test]
+async fn deauthorizing_an_unlinked_account_is_fine() {
+    let links = std::sync::Arc::new(MemoryLinks::with([link("u2", "d2")]));
+    assert_eq!(
+        deauthorize(vec![links.clone()], "d1").await,
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(links.all(), [link("u2", "d2")]);
+}
+
+/// A link store whose removals fail.
+struct BrokenLinks;
+
+impl LinkStore for BrokenLinks {
+    fn get_by_user<'a>(
+        &'a self,
+        _: &'a str,
+    ) -> LinkFuture<'a, Result<Option<Link>, shared::Error>> {
+        Box::pin(async { Err("down".into()) })
+    }
+    fn save(&self, _: Link) -> LinkFuture<'_, Result<(), SaveError>> {
+        Box::pin(async { Err(SaveError::Store("down".into())) })
+    }
+    fn remove_by_user<'a>(
+        &'a self,
+        _: &'a str,
+    ) -> LinkFuture<'a, Result<Option<Link>, shared::Error>> {
+        Box::pin(async { Err("down".into()) })
+    }
+    fn remove_by_discord<'a>(
+        &'a self,
+        _: &'a str,
+    ) -> LinkFuture<'a, Result<Option<Link>, shared::Error>> {
+        Box::pin(async { Err("down".into()) })
+    }
+}
+
+#[tokio::test]
+async fn storage_failure_asks_discord_to_retry_after_trying_every_store() {
+    let dev = std::sync::Arc::new(MemoryLinks::with([link("dev-u1", "d1")]));
+    let status = deauthorize(vec![std::sync::Arc::new(BrokenLinks), dev.clone()], "d1").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(dev.all(), [], "the working store is still cleaned up");
+}
+
+#[tokio::test]
+async fn deauthorization_without_a_user_is_rejected() {
+    let signer = Signer::new();
+    let body = r#"{"version":1,"application_id":"1","type":1,"event":{"type":"APPLICATION_DEAUTHORIZED","timestamp":"2026-10-07T00:00:00Z","data":{}}}"#;
+    let signature = signer.sign(body);
+    let (status, _) = post(
+        signer.verifier(),
+        "/api/discord/events",
+        body,
+        Some(&signature),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn other_events_leave_links_alone() {
+    let links = std::sync::Arc::new(MemoryLinks::with([link("u1", "d1")]));
+    let signer = Signer::new();
+    let body = r#"{"version":1,"application_id":"1","type":1,"event":{"type":"APPLICATION_AUTHORIZED","timestamp":"2026-10-07T00:00:00Z","data":{"user":{"id":"d1"}}}}"#;
+    let signature = signer.sign(body);
+    let state = state_with_links(signer.verifier(), Ok(vec![]), vec![links.clone()]);
+    let (status, _) = send(state, "/api/discord/events", body, Some(&signature)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(links.all(), [link("u1", "d1")]);
 }
