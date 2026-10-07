@@ -7,7 +7,9 @@ Guidance for Claude Code in this repository.
 - `web/`: Next.js static export (`output: 'export'`, `trailingSlash: true`), pnpm, TypeScript, oxlint, oxfmt.
 - `api/`: Cargo workspace of Rust Lambdas built for arm64 with cargo-lambda, which packages each binary as `target/lambda/<name>/bootstrap.zip`.
   - `crates/api`: the site API, an Axum app on `lambda_http` served under `/api`.
-  - `crates/discord`: the Discord bot's interactions (`POST /api/discord/interactions`) and webhook events (`POST /api/discord/events`) endpoints. Every request's Ed25519 signature is checked against `DISCORD_PUBLIC_KEY` before parsing. Deployed only where the GitHub Environment sets `DISCORD_FUNCTION_NAME` (prod).
+  - `crates/discord`: the Discord bot's interactions (`POST /api/discord/interactions`) and webhook events (`POST /api/discord/events`) endpoints. Every request's Ed25519 signature is checked against `DISCORD_PUBLIC_KEY` before parsing. `/meetup` replies with the next Discord scheduled event (the server's Events tab is the source of truth), reading it with the bot token from SSM, which is fetched on first use.
+  - `crates/discord` also builds `discord-reminders`, run by EventBridge Scheduler every 15 minutes with `{"scheduled_time": …}`. It posts new-meetup announcements and one-week, one-day, and one-hour reminders to `#announcements` through a webhook (`DISCORD_ANNOUNCEMENTS_WEBHOOK_PARAMETER`). Each run covers the interval ending at its scheduled time (`reminders::due`), so every post happens exactly once with no stored state. All posts set `allowed_mentions: {parse: []}`.
+  - Both deploy only where the GitHub Environment sets `DISCORD_FUNCTION_NAME` / `DISCORD_REMINDERS_FUNCTION_NAME` (prod).
 - `scripts/prune-static.sh`: removes stale `_next/static` objects after a deploy.
 - Infrastructure (S3, CloudFront, API Gateway, Lambda, deploy roles, GitHub Environments) is Terraform in `fairfieldai/infra`, not here.
 
