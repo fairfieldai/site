@@ -21,6 +21,7 @@ prek run --all-files
 
 - The site is static. No Route Handlers, Server Actions, middleware, ISR, or `next/image` optimization. Dynamic behavior goes in the API.
 - API routes must be mounted under `/api`; CloudFront forwards the full path. Unknown routes return a JSON 404, but CloudFront replaces 404 bodies with the site's `404.html`, so clients should rely on the status code.
-- The Lambda reads configuration from environment variables set by Terraform: `TABLE_NAME`, `SSM_PARAMETER_PATH`, `MAIL_API_BASE_URL`, `MAIL_API_KEY_PARAMETER`, `MAIL_FROM`. Secrets are SecureString SSM parameters under `SSM_PARAMETER_PATH`.
+- The Lambda reads configuration from environment variables set by Terraform: `TABLE_NAME`, `SSM_PARAMETER_PATH`, `MAIL_API_BASE_URL`, `MAIL_API_KEY_PARAMETER`, `MAIL_FROM`, `COGNITO_ISSUER`, `COGNITO_CLIENT_ID`.
+- Auth: Cognito managed login with a public app client (code flow + PKCE) through `oidc-client-ts` in `web/lib/auth.ts`. The site loads `/config.json` at runtime (written per environment by the deploy, or `web/public/config.json` locally). API handlers that take an `api::auth::User` argument require a valid Cognito access token (`Authorization: Bearer`); `api/src/auth.rs` verifies it against the user pool JWKS, and the tests sign tokens with the test-only keys in `api/testdata/`. Secrets are SecureString SSM parameters under `SSM_PARAMETER_PATH`.
 - Email is sent through the AgentMail-compatible mailbox API at `MAIL_API_BASE_URL` as `hello@inbox.fairfieldct.ai`, authenticated with the bearer key in `MAIL_API_KEY_PARAMETER`.
 - GitHub Actions are pinned to commit SHAs with a version comment.

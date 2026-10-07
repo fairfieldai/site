@@ -1,7 +1,7 @@
 # Deploys the web and api artifacts from the calling run to one environment.
-# AWS_ROLE_ARN, AWS_REGION, S3_BUCKET, CLOUDFRONT_DISTRIBUTION_ID, and
-# LAMBDA_FUNCTION_NAME are GitHub Environment variables managed by Terraform in
-# fairfieldai/infra.
+# AWS_ROLE_ARN, AWS_REGION, S3_BUCKET, CLOUDFRONT_DISTRIBUTION_ID,
+# LAMBDA_FUNCTION_NAME, COGNITO_DOMAIN, COGNITO_CLIENT_ID, and COGNITO_ISSUER are
+# GitHub Environment variables managed by Terraform in fairfieldai/infra.
 
 name: Deploy environment
 
@@ -29,6 +29,9 @@ jobs:
       S3_BUCKET: ${{ vars.S3_BUCKET }}
       CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
       LAMBDA_FUNCTION_NAME: ${{ vars.LAMBDA_FUNCTION_NAME }}
+      COGNITO_DOMAIN: ${{ vars.COGNITO_DOMAIN }}
+      COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
+      COGNITO_ISSUER: ${{ vars.COGNITO_ISSUER }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,6 +49,15 @@ jobs:
         with:
           name: api
           path: api
+
+      # One build serves every environment; the site reads these at runtime.
+      - name: Write runtime config
+        run: |
+          jq -n \
+            --arg cognitoDomain "$COGNITO_DOMAIN" \
+            --arg cognitoClientId "$COGNITO_CLIENT_ID" \
+            --arg cognitoIssuer "$COGNITO_ISSUER" \
+            '{$cognitoDomain, $cognitoClientId, $cognitoIssuer}' >web/out/config.json
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0

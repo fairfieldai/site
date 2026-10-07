@@ -9,3 +9,6 @@ web/next-env.d.ts
 target/
 
 .DS_Store
+
+# Local runtime config for `pnpm dev` (the deploy writes the real one)
+web/public/config.json
