@@ -1,0 +1,84 @@
+# Git hooks run by prek: `prek install`, then `prek run --all-files`.
+#:schema https://www.schemastore.org/prek.json
+
+[[repos]]
+repo = "builtin"
+hooks = [
+    { id = "trailing-whitespace" },
+    { id = "end-of-file-fixer" },
+    { id = "check-added-large-files" },
+]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "oxfmt"
+name = "oxfmt"
+language = "system"
+entry = "pnpm --dir web format:check"
+files = "^web/"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "oxlint"
+name = "oxlint"
+language = "system"
+entry = "pnpm --dir web lint"
+files = "^web/"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "tsc"
+name = "tsc"
+language = "system"
+entry = "pnpm --dir web typecheck"
+files = "^web/"
+pass_filenames = false
+
+# The Rust hooks run inside api/ so rust-toolchain.toml selects the pinned toolchain.
+[[repos.hooks]]
+id = "cargo-fmt"
+name = "cargo fmt"
+language = "system"
+entry = "sh -c 'cd api && cargo fmt --check'"
+files = "^api/"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "cargo-clippy"
+name = "cargo clippy"
+language = "system"
+entry = "sh -c 'cd api && cargo clippy --all-targets --locked -- -D warnings'"
+files = "^api/"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "shellcheck"
+name = "shellcheck"
+language = "system"
+entry = "shellcheck"
+types = ["shell"]
+
+[[repos.hooks]]
+id = "shfmt"
+name = "shfmt"
+language = "system"
+entry = "shfmt -i 2 -d"
+types = ["shell"]
+
+[[repos.hooks]]
+id = "actionlint"
+name = "actionlint"
+language = "system"
+entry = "actionlint"
+files = "^\\.github/workflows/"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "zizmor"
+name = "zizmor"
+language = "system"
+entry = "zizmor --offline .github/workflows"
+files = "^\\.github/workflows/"
+pass_filenames = false

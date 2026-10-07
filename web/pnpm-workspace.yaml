@@ -1,0 +1,2 @@
+# Install the latest releases without pnpm's default one-day hold.
+minimumReleaseAge: 0

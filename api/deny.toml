@@ -1,0 +1,25 @@
+[graph]
+targets = ["aarch64-unknown-linux-gnu"]
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+allow = ["Apache-2.0", "BSD-3-Clause", "MIT", "Unicode-3.0"]
+
+[licenses.private]
+# The api crate is never published.
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+skip = [
+  { crate = "syn", reason = "Upstream proc macros are split between syn 2 and syn 3" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

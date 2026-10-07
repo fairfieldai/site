@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "nextjs", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+  "ignorePatterns": [".next/**", "out/**", "next-env.d.ts"],
+  "rules": {
+    // The automatic JSX runtime (jsx: react-jsx) does not need React in scope.
+    "react/react-in-jsx-scope": "off",
+    // Next.js loads global CSS through side-effect imports.
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
+  }
+}
