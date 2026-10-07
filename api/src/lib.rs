@@ -3,10 +3,28 @@
 //! CloudFront forwards the full request path, so every route is mounted under
 //! `/api`.
 
+pub mod auth;
+
+use std::sync::Arc;
+
+use axum::extract::FromRef;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Serialize;
+
+use crate::auth::{User, Verifier};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub verifier: Arc<Verifier>,
+}
+
+impl FromRef<AppState> for Arc<Verifier> {
+    fn from_ref(state: &AppState) -> Self {
+        Arc::clone(&state.verifier)
+    }
+}
 
 #[derive(Debug, Serialize)]
 struct Status {
@@ -18,14 +36,20 @@ struct ErrorBody {
     error: &'static str,
 }
 
-pub fn router() -> Router {
+pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
+        .route("/api/me", get(me))
         .fallback(not_found)
+        .with_state(state)
 }
 
 async fn health() -> Json<Status> {
     Json(Status { status: "ok" })
+}
+
+async fn me(user: User) -> Json<User> {
+    Json(user)
 }
 
 async fn not_found() -> (StatusCode, Json<ErrorBody>) {
@@ -36,50 +60,4 @@ async fn not_found() -> (StatusCode, Json<ErrorBody>) {
 }
 
 #[cfg(test)]
-mod tests {
-    use axum::body::Body;
-    use axum::http::{Method, Request, StatusCode};
-    use http_body_util::BodyExt;
-    use serde_json::{Value, json};
-    use tower::ServiceExt;
-
-    use super::router;
-
-    async fn send(method: Method, uri: &str) -> (StatusCode, Option<Value>) {
-        let request = Request::builder()
-            .method(method)
-            .uri(uri)
-            .body(Body::empty())
-            .unwrap();
-        let response = router().oneshot(request).await.unwrap();
-        let status = response.status();
-        let bytes = response.into_body().collect().await.unwrap().to_bytes();
-        (status, serde_json::from_slice(&bytes).ok())
-    }
-
-    #[tokio::test]
-    async fn health_returns_ok() {
-        let (status, body) = send(Method::GET, "/api/health").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(body, Some(json!({ "status": "ok" })));
-    }
-
-    #[tokio::test]
-    async fn unknown_route_returns_json_404() {
-        let (status, body) = send(Method::GET, "/api/missing").await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(body, Some(json!({ "error": "not found" })));
-    }
-
-    #[tokio::test]
-    async fn routes_outside_api_prefix_are_not_found() {
-        let (status, _) = send(Method::GET, "/health").await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test]
-    async fn wrong_method_is_rejected() {
-        let (status, _) = send(Method::POST, "/api/health").await;
-        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
-    }
-}
+mod tests;
