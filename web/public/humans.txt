@@ -1,0 +1,15 @@
+/* TEAM */
+Organizers: the fairfieldct.ai volunteers
+Contact: hello [at] inbox.fairfieldct.ai
+From: Fairfield, Connecticut, USA
+Discord: https://discord.gg/wC8UCHpXJj
+
+/* THANKS */
+Inspiration: Montclair AI (https://www.montclair.ai)
+
+/* SITE */
+Language: English
+Standards: HTML, CSS, TypeScript, Rust
+Components: Next.js, React, Axum, Amazon Cognito, AWS Lambda, Amazon CloudFront, Amazon S3
+Software: Terraform, GitHub Actions, Claude Code
+Source: https://github.com/fairfieldai

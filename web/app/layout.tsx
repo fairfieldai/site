@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { DISCORD_INVITE_URL } from "@/lib/links";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 import { Shoreline } from "./components/shoreline";
 import "./globals.css";
@@ -20,9 +21,24 @@ const sans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "fairfieldct.ai · A local AI community for Fairfield, CT",
-  description:
-    "A local community in Fairfield, Connecticut for builders, thinkers, and the AI-curious to learn, share, and build with AI together.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} · A local AI community for Fairfield, CT`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  authors: [{ name: `${SITE_NAME} organizers`, url: "/humans.txt" }],
+  keywords: [
+    "Fairfield",
+    "Connecticut",
+    "AI",
+    "artificial intelligence",
+    "community",
+    "meetups",
+    "machine learning",
+    "Fairfield County",
+  ],
 };
 
 export const viewport: Viewport = {

@@ -1,0 +1,29 @@
+# fairfieldct.ai
+
+> fairfieldct.ai is a volunteer-run local community in Fairfield, Connecticut (USA) for builders, thinkers, and the AI-curious to learn from each other, share what they're making, and talk through what AI means for the town. Technical or not, everyone is welcome. The website is new; the community gathers on Discord and at in-person meetups.
+
+Key facts:
+
+- Location: Fairfield, Connecticut, USA (Fairfield County, on Long Island Sound)
+- Contact: hello@inbox.fairfieldct.ai
+- Join: create a free account at https://www.fairfieldct.ai/ ("Join the community"), or join the Discord server at https://discord.gg/wC8UCHpXJj
+- Meetups: scheduled in the Discord server's Events and announced in its #announcements channel. In Discord, the /meetup command shows the next one.
+- Planned activities: relaxed meetups about AI and technology (no expertise required), demo nights where members show what they're building, and hands-on learning sessions for using AI tools at work, school, and home.
+- Members must be 13 or older. Community guidelines: be respectful; no harassment, spam, or scams; don't share others' personal information; nothing illegal or sexually explicit; don't use AI-generated content to deceive.
+
+## Pages
+
+- [Home](https://www.fairfieldct.ai/): What the community is, what's planned, and how to join
+- [Terms of Service](https://www.fairfieldct.ai/terms/): Community guidelines and terms for the site, events, and Discord
+- [Privacy Policy](https://www.fairfieldct.ai/privacy/): What data is collected, how it's used and kept, and how to have it deleted
+
+## Community
+
+- [Discord server](https://discord.gg/wC8UCHpXJj): Conversation, show-and-tell, questions, meetup events, and announcements
+- [Email](mailto:hello@inbox.fairfieldct.ai): Questions for the organizers, speaking or demo offers, and venue or sponsor ideas
+
+## Optional
+
+- [Website source code](https://github.com/fairfieldai/site): The Next.js site and Rust APIs
+- [Infrastructure source code](https://github.com/fairfieldai/infra): Terraform for AWS hosting and the Discord server setup
+- [humans.txt](https://www.fairfieldct.ai/humans.txt): Who runs the site and what it's built with
