@@ -10,18 +10,18 @@ name = "api"
 path = "src/main.rs"
 
 [dependencies]
-axum.workspace = true
-jsonwebtoken.workspace = true
-lambda_http.workspace = true
-reqwest.workspace = true
-serde.workspace = true
-tokio.workspace = true
+axum = { workspace = true, features = ["json", "tokio"] }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs"] }
+lambda_http = { workspace = true, features = ["apigw_http", "tracing"] }
+reqwest = { workspace = true, features = ["json", "rustls"] }
+serde = { workspace = true, features = ["derive", "std"] }
+tokio = { workspace = true, features = ["macros", "sync"] }
 
 [dev-dependencies]
-http-body-util.workspace = true
-jsonwebtoken = { workspace = true, features = ["use_pem"] }
-serde_json.workspace = true
-tower.workspace = true
+http-body-util = { workspace = true }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
+serde_json = { workspace = true, features = ["std"] }
+tower = { workspace = true, features = ["util"] }
 
 [lints]
 workspace = true
