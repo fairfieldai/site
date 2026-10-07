@@ -67,10 +67,13 @@ jobs:
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
 
-      - name: cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+      # cargo-deny-action runs an x86_64 container, which can't run on arm64 runners.
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
         with:
-          manifest-path: api/Cargo.toml
+          tool: cargo-deny
+
+      - run: cargo deny check
 
   workflows:
     name: Workflows
