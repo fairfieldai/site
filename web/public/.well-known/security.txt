@@ -1,0 +1,7 @@
+# Report security issues with fairfieldct.ai, its Discord bot, or its
+# infrastructure. Please don't open public GitHub issues for vulnerabilities.
+Contact: mailto:hello@inbox.fairfieldct.ai
+Expires: 2027-10-07T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://www.fairfieldct.ai/.well-known/security.txt
+Policy: https://github.com/fairfieldai/site/security/policy

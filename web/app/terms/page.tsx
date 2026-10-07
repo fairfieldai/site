@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { pageMetadata } from "@/lib/site";
+
 import { LegalPage } from "../components/legal-page";
 
-export const metadata: Metadata = {
-  title: "Terms of Service · fairfieldct.ai",
-};
+export const metadata: Metadata = pageMetadata({
+  path: "/terms/",
+  title: "Terms of Service",
+  description:
+    "The terms and community guidelines for fairfieldct.ai, the local AI community in Fairfield, Connecticut: online, at events, and on Discord.",
+});
 
 export default function Terms() {
   return (

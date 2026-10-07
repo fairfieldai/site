@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+
+import { STRUCTURED_DATA, pageMetadata } from "@/lib/site";
+
 import { Account } from "./components/account";
 import { Horizon } from "./components/horizon";
 
@@ -16,9 +20,18 @@ const plans = [
   },
 ];
 
+export const metadata: Metadata = pageMetadata({ path: "/" });
+
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        // JSON.stringify of a constant; "<" is escaped so the data can't close the script tag.
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(STRUCTURED_DATA).replace(/</g, "\\u003c"),
+        }}
+      />
       <main className="hero hero-home">
         <div className="hero-copy">
           <p className="eyebrow">Coming soon</p>

@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { pageMetadata } from "@/lib/site";
+
 import { LegalPage } from "../components/legal-page";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy · fairfieldct.ai",
-};
+export const metadata: Metadata = pageMetadata({
+  path: "/privacy/",
+  title: "Privacy Policy",
+  description:
+    "What fairfieldct.ai collects when you create an account, email us, visit the site, or join our Discord, how it's used, how long it's kept, and how to have it deleted.",
+});
 
 export default function Privacy() {
   return (
