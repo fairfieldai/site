@@ -6,7 +6,7 @@ Infrastructure lives in [fairfieldai/infra](https://github.com/fairfieldai/infra
 | Path | Contents |
 |------|----------|
 | `web/` | Next.js app built with `output: 'export'`, served from S3 behind CloudFront |
-| `api/` | Axum app running on Lambda (`provided.al2023`, arm64) behind API Gateway, served under `/api` |
+| `api/` | Rust Lambdas (`provided.al2023`, arm64) behind API Gateway: the site API under `/api`, and the Discord bot at `/api/discord/*` |
 | `scripts/` | Deploy helpers |
 | `.github/workflows/` | CI and deploys |
 
@@ -51,7 +51,7 @@ only runs if its commit is still the tip of `main`, so approving an older run
 can't overwrite a newer one; roll back by reverting on `main`. Each deploy:
 
 1. Writes `config.json` with that environment's Cognito settings.
-2. Updates the Lambda code.
+2. Updates the Lambda code, including the Discord bot where the environment has one.
 3. Uploads `_next/static` with a one-year immutable cache, then everything else
    with `max-age=0, must-revalidate`, deleting removed pages.
 4. Invalidates CloudFront.

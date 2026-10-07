@@ -1,0 +1,27 @@
+[package]
+name = "api"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+# cargo-lambda packages each binary as target/lambda/<name>/bootstrap.zip.
+[[bin]]
+name = "api"
+path = "src/main.rs"
+
+[dependencies]
+axum = { workspace = true, features = ["json", "tokio"] }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs"] }
+lambda_http = { workspace = true, features = ["apigw_http", "tracing"] }
+reqwest = { workspace = true, features = ["json", "rustls"] }
+serde = { workspace = true, features = ["derive", "std"] }
+tokio = { workspace = true, features = ["macros", "sync"] }
+
+[dev-dependencies]
+http-body-util = { workspace = true }
+jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
+serde_json = { workspace = true, features = ["std"] }
+tower = { workspace = true, features = ["util"] }
+
+[lints]
+workspace = true

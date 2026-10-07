@@ -105,11 +105,15 @@ jobs:
 
       - run: cargo lambda build --release --arm64 --locked --output-format zip
 
-      - name: Upload function
+      # One zip per binary. Listed explicitly so stale output restored by the
+      # Rust cache never ships.
+      - name: Upload functions
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: api
-          path: api/target/lambda/bootstrap/bootstrap.zip
+          name: lambda
+          path: |
+            api/target/lambda/api/bootstrap.zip
+            api/target/lambda/discord/bootstrap.zip
           if-no-files-found: error
 
   dev:
