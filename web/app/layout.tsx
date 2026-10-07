@@ -3,6 +3,8 @@ import { DM_Serif_Display, Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { DISCORD_INVITE_URL } from "@/lib/links";
+
 import { Shoreline } from "./components/shoreline";
 import "./globals.css";
 
@@ -46,6 +48,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <nav className="footer-links" aria-label="Footer">
               <Link href="/terms/">Terms</Link>
               <Link href="/privacy/">Privacy</Link>
+              <a href={DISCORD_INVITE_URL}>Discord</a>
               <a href="mailto:hello@inbox.fairfieldct.ai">hello@inbox.fairfieldct.ai</a>
             </nav>
           </footer>
