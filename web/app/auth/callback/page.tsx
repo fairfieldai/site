@@ -16,9 +16,9 @@ export default function AuthCallback() {
   }, [router]);
 
   return (
-    <main>
-      <h1>{error ? "Sign-in failed" : "Signing in…"}</h1>
-      {error && <p>{error}</p>}
+    <main className="hero">
+      <h1>{error ? "Sign-in failed" : "Signing you in…"}</h1>
+      {error && <p className="lede">{error}</p>}
     </main>
   );
 }

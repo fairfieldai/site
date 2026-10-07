@@ -15,25 +15,37 @@ export function Account() {
   }, []);
 
   if (user === undefined) {
-    return null;
+    // Holds the space so the page doesn't shift once the session loads.
+    return <div className="account" aria-hidden="true" />;
   }
 
   if (!user) {
     return (
-      <p>
-        <button type="button" onClick={() => void signIn()}>
-          Sign in or create an account
+      <div className="account">
+        <button type="button" className="button" onClick={() => void signIn()}>
+          Join the community
         </button>
-      </p>
+        <p className="account-note">
+          Already joined?{" "}
+          <button type="button" className="link-button" onClick={() => void signIn()}>
+            Sign in
+          </button>
+        </p>
+      </div>
     );
   }
 
   return (
-    <p>
-      Signed in as {user.profile.email}.{" "}
-      <button type="button" onClick={() => void signOut()}>
-        Sign out
-      </button>
-    </p>
+    <div className="account">
+      <p className="member">
+        You&apos;re in, <strong>{user.profile.email}</strong>. Watch this space for the first
+        events.
+      </p>
+      <p className="account-note">
+        <button type="button" className="link-button" onClick={() => void signOut()}>
+          Sign out
+        </button>
+      </p>
+    </div>
   );
 }
