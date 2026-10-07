@@ -10,7 +10,9 @@ publish = false
 [workspace.dependencies]
 # Exact versions, no default features, and no features here: each crate enables
 # the features it uses.
+aws-config = { version = "=1.12.0", default-features = false }
 aws-lc-rs = { version = "=1.18.1", default-features = false }
+aws-sdk-ssm = { version = "=1.128.0", default-features = false }
 axum = { version = "=0.8.9", default-features = false }
 http-body-util = { version = "=0.1.5", default-features = false }
 jsonwebtoken = { version = "=11.1.0", default-features = false }

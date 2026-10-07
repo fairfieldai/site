@@ -114,6 +114,7 @@ jobs:
           path: |
             api/target/lambda/api/bootstrap.zip
             api/target/lambda/discord/bootstrap.zip
+            api/target/lambda/discord-reminders/bootstrap.zip
           if-no-files-found: error
 
   dev:

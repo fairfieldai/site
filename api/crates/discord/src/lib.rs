@@ -5,7 +5,12 @@
 //! parsing anything, and Discord tests this by sending bad signatures when the
 //! endpoint URLs are saved.
 
+pub mod events;
+pub mod reminders;
+pub mod ssm;
+
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use aws_lc_rs::signature::{ED25519, UnparsedPublicKey};
 use axum::body::Bytes;
@@ -17,6 +22,8 @@ use axum::{Json, Router};
 use lambda_http::tracing;
 use serde::Deserialize;
 use serde_json::{Value, json};
+
+use crate::events::{EventSource, next_meetup};
 
 const PING: u8 = 1;
 const APPLICATION_COMMAND: u8 = 2;
@@ -89,20 +96,24 @@ struct WebhookEventBody {
     kind: String,
 }
 
-pub fn router(verifier: Verifier) -> Router {
-    Router::new()
-        .route("/api/discord/interactions", post(interactions))
-        .route("/api/discord/events", post(events))
-        .fallback(not_found)
-        .with_state(Arc::new(verifier))
+/// What the handlers share across requests.
+#[derive(Clone)]
+pub struct AppState {
+    pub verifier: Arc<Verifier>,
+    pub events: Arc<dyn EventSource>,
+    pub guild_id: String,
 }
 
-async fn interactions(
-    State(verifier): State<Arc<Verifier>>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
-    if !verifier.verify(&headers, &body) {
+pub fn router(state: AppState) -> Router {
+    Router::new()
+        .route("/api/discord/interactions", post(interactions))
+        .route("/api/discord/events", post(webhook_events))
+        .fallback(not_found)
+        .with_state(state)
+}
+
+async fn interactions(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
+    if !state.verifier.verify(&headers, &body) {
         return error(StatusCode::UNAUTHORIZED, "invalid request signature");
     }
     let Ok(interaction) = serde_json::from_slice::<Interaction>(&body) else {
@@ -112,25 +123,65 @@ async fn interactions(
         PING => Json(json!({ "type": PONG })).into_response(),
         APPLICATION_COMMAND => {
             let name = interaction.data.map(|data| data.name);
-            Json(command_response(name.as_deref())).into_response()
+            Json(command_response(&state, name.as_deref()).await).into_response()
         }
         _ => error(StatusCode::BAD_REQUEST, "unsupported interaction type"),
     }
 }
 
-fn command_response(name: Option<&str>) -> Value {
-    let content = match name {
-        Some("ping") => "Pong!",
-        _ => "Sorry, I don't know that command yet.",
+async fn command_response(state: &AppState, name: Option<&str>) -> Value {
+    match name {
+        Some("ping") => private("Pong!"),
+        Some("meetup") => meetup(state).await,
+        _ => private("Sorry, I don't know that command yet."),
+    }
+}
+
+/// The next meetup, visible to the whole channel.
+async fn meetup(state: &AppState) -> Value {
+    let events = match state.events.scheduled_events().await {
+        Ok(events) => events,
+        Err(error) => {
+            tracing::error!(%error, "couldn't load scheduled events");
+            return private(
+                "Sorry, I couldn't load meetups right now. Please try again in a minute.",
+            );
+        }
     };
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| {
+            i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX)
+        });
+    match next_meetup(&events, now) {
+        Some(event) => {
+            let heading = if event.is_active() {
+                format!("Happening now: {}", event.name)
+            } else {
+                format!("Next meetup: {}", event.name)
+            };
+            json!({
+                "type": CHANNEL_MESSAGE_WITH_SOURCE,
+                "data": {
+                    "content": event.message(&heading, &state.guild_id),
+                    "allowed_mentions": { "parse": [] },
+                },
+            })
+        }
+        None => private("No meetups are scheduled yet. Watch #announcements for the next one."),
+    }
+}
+
+/// A reply only the person who ran the command can see.
+fn private(content: &str) -> Value {
     json!({
         "type": CHANNEL_MESSAGE_WITH_SOURCE,
         "data": { "content": content, "flags": EPHEMERAL },
     })
 }
 
-async fn events(
-    State(verifier): State<Arc<Verifier>>,
+async fn webhook_events(
+    State(AppState { verifier, .. }): State<AppState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {

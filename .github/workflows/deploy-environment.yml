@@ -2,7 +2,8 @@
 # AWS_ROLE_ARN, AWS_REGION, S3_BUCKET, CLOUDFRONT_DISTRIBUTION_ID,
 # LAMBDA_FUNCTION_NAME, COGNITO_DOMAIN, COGNITO_CLIENT_ID, and COGNITO_ISSUER are
 # GitHub Environment variables managed by Terraform in fairfieldai/infra.
-# DISCORD_FUNCTION_NAME is set only in environments with a Discord application.
+# DISCORD_FUNCTION_NAME and DISCORD_REMINDERS_FUNCTION_NAME are set only in
+# environments with a Discord application.
 
 name: Deploy environment
 
@@ -34,6 +35,7 @@ jobs:
       COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
       COGNITO_ISSUER: ${{ vars.COGNITO_ISSUER }}
       DISCORD_FUNCTION_NAME: ${{ vars.DISCORD_FUNCTION_NAME }}
+      DISCORD_REMINDERS_FUNCTION_NAME: ${{ vars.DISCORD_REMINDERS_FUNCTION_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,6 +92,13 @@ jobs:
           aws lambda update-function-code --function-name "$DISCORD_FUNCTION_NAME" \
             --zip-file fileb://lambda/discord/bootstrap.zip --output text --query LastUpdateStatus
           aws lambda wait function-updated-v2 --function-name "$DISCORD_FUNCTION_NAME"
+
+      - name: Deploy Discord reminders
+        if: env.DISCORD_REMINDERS_FUNCTION_NAME != ''
+        run: |
+          aws lambda update-function-code --function-name "$DISCORD_REMINDERS_FUNCTION_NAME" \
+            --zip-file fileb://lambda/discord-reminders/bootstrap.zip --output text --query LastUpdateStatus
+          aws lambda wait function-updated-v2 --function-name "$DISCORD_REMINDERS_FUNCTION_NAME"
 
       # Hashed assets never change, so they cache forever and upload before the
       # pages that reference them.
