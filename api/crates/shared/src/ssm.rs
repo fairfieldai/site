@@ -1,6 +1,6 @@
 //! `SecureString` parameters read from SSM once per execution environment.
 
-use lambda_http::Error;
+use crate::Error;
 use tokio::sync::OnceCell;
 
 /// An SSM parameter fetched on first use and cached afterward.

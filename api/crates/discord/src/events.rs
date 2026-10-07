@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::OnceCell;
 
-use crate::ssm::Parameter;
+use shared::ssm::Parameter;
 
 /// Milliseconds between the Unix epoch and the Discord epoch (2015-01-01).
 const DISCORD_EPOCH_MS: u64 = 1_420_070_400_000;

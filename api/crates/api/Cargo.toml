@@ -10,17 +10,21 @@ name = "api"
 path = "src/main.rs"
 
 [dependencies]
+aws-config = { workspace = true, features = ["behavior-version-latest", "default-https-client", "rt-tokio"] }
+aws-sdk-dynamodb = { workspace = true, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-ssm = { workspace = true, features = ["default-https-client", "rt-tokio"] }
 axum = { workspace = true, features = ["json", "tokio"] }
 jsonwebtoken = { workspace = true, features = ["aws_lc_rs"] }
 lambda_http = { workspace = true, features = ["apigw_http", "tracing"] }
-reqwest = { workspace = true, features = ["json", "rustls"] }
+reqwest = { workspace = true, features = ["form", "json", "rustls"] }
 serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true, features = ["std"] }
+shared = { workspace = true }
 tokio = { workspace = true, features = ["macros", "sync"] }
 
 [dev-dependencies]
 http-body-util = { workspace = true }
 jsonwebtoken = { workspace = true, features = ["aws_lc_rs", "use_pem"] }
-serde_json = { workspace = true, features = ["std"] }
 tower = { workspace = true, features = ["util"] }
 
 [lints]

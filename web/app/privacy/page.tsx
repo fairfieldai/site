@@ -56,9 +56,19 @@ export default function Privacy() {
       <h3>On Discord</h3>
       <p>
         Our Discord server is run on Discord, and what you post there is governed by{" "}
-        <a href="https://discord.com/privacy">Discord&apos;s Privacy Policy</a>. Our bot only
-        manages the server and posts notifications to organizer channels. It doesn&apos;t collect or
+        <a href="https://discord.com/privacy">Discord&apos;s Privacy Policy</a>. Our bot answers
+        commands and posts announcements and organizer notifications. It doesn&apos;t collect or
         store your messages.
+      </p>
+      <h3>When you connect your Discord account</h3>
+      <p>
+        If you link your Discord account to your fairfieldct.ai account, we store your Discord user
+        ID and username, when you linked them, and a token from Discord that lets us update your
+        Member role, for example to remove it if you disconnect. We tell Discord that your account
+        is a fairfieldct.ai member so it can give you the Member role. We don&apos;t see your
+        Discord password, email, servers, or messages. You can disconnect on our{" "}
+        <Link href="/connect/discord/">Discord connection page</Link> or in Discord under Settings →
+        Authorized Apps; either way we delete the link.
       </p>
 
       <h2>How we use it</h2>
@@ -82,6 +92,7 @@ export default function Privacy() {
       <h2>How long we keep it</h2>
       <ul>
         <li>Account information: until you ask us to delete your account.</li>
+        <li>A linked Discord account: until you disconnect it or delete your account.</li>
         <li>Emails to our inbox: up to one year.</li>
         <li>Email delivery, open, and click records: up to one year.</li>
         <li>API logs: 30 days.</li>

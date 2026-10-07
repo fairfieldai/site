@@ -34,6 +34,7 @@ jobs:
       COGNITO_DOMAIN: ${{ vars.COGNITO_DOMAIN }}
       COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
       COGNITO_ISSUER: ${{ vars.COGNITO_ISSUER }}
+      DISCORD_CLIENT_ID: ${{ vars.DISCORD_CLIENT_ID }}
       DISCORD_FUNCTION_NAME: ${{ vars.DISCORD_FUNCTION_NAME }}
       DISCORD_REMINDERS_FUNCTION_NAME: ${{ vars.DISCORD_REMINDERS_FUNCTION_NAME }}
     steps:
@@ -71,7 +72,8 @@ jobs:
             --arg cognitoDomain "$COGNITO_DOMAIN" \
             --arg cognitoClientId "$COGNITO_CLIENT_ID" \
             --arg cognitoIssuer "$COGNITO_ISSUER" \
-            '{$cognitoDomain, $cognitoClientId, $cognitoIssuer}' >web/out/config.json
+            --arg discordClientId "$DISCORD_CLIENT_ID" \
+            '{$cognitoDomain, $cognitoClientId, $cognitoIssuer, $discordClientId}' >web/out/config.json
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0

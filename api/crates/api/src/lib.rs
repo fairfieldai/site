@@ -4,6 +4,7 @@
 //! `/api`.
 
 pub mod auth;
+pub mod discord_link;
 
 use std::sync::Arc;
 
@@ -14,15 +15,24 @@ use axum::{Json, Router};
 use serde::Serialize;
 
 use crate::auth::{User, Verifier};
+use crate::discord_link::Linking;
 
 #[derive(Clone)]
 pub struct AppState {
     pub verifier: Arc<Verifier>,
+    /// Discord account linking, when this environment has it.
+    pub discord: Linking,
 }
 
 impl FromRef<AppState> for Arc<Verifier> {
     fn from_ref(state: &AppState) -> Self {
         Arc::clone(&state.verifier)
+    }
+}
+
+impl FromRef<AppState> for Linking {
+    fn from_ref(state: &AppState) -> Self {
+        state.discord.clone()
     }
 }
 
@@ -40,6 +50,7 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/me", get(me))
+        .merge(discord_link::routes())
         .fallback(not_found)
         .with_state(state)
 }

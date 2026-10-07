@@ -1,1 +1,1 @@
-doc-valid-idents = ["CloudFront", ".."]
+doc-valid-idents = ["CloudFront", "OAuth2", ".."]

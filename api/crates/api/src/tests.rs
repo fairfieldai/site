@@ -49,6 +49,7 @@ fn state(available: bool) -> (AppState, Arc<AtomicUsize>) {
     (
         AppState {
             verifier: Arc::new(verifier),
+            discord: None,
         },
         fetches,
     )
@@ -249,4 +250,459 @@ async fn retries_key_fetch_after_an_outage() {
         Err(AuthError::Unavailable)
     );
     assert_eq!(fetches.load(Ordering::SeqCst), 2);
+}
+
+mod discord_linking {
+    use std::sync::Mutex;
+
+    use shared::links::{Link, MemoryLinks};
+
+    use super::*;
+    use crate::discord_link::{
+        DiscordLinking, DiscordOAuth, DiscordUser, OAuthError, Tokens, role_connection,
+    };
+
+    type OAuthFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, OAuthError>> + Send + 'a>>;
+
+    /// What a fake Discord call returns.
+    #[derive(Clone, Copy, PartialEq)]
+    enum Outcome {
+        Ok,
+        InvalidGrant,
+        Fail,
+    }
+
+    impl Outcome {
+        fn result<T>(self, value: T) -> Result<T, OAuthError> {
+            match self {
+                Self::Ok => Ok(value),
+                Self::InvalidGrant => Err(OAuthError::InvalidGrant),
+                Self::Fail => Err(OAuthError::Failed("discord down".into())),
+            }
+        }
+    }
+
+    /// Records Discord calls and answers them as configured.
+    struct FakeDiscord {
+        calls: Mutex<Vec<String>>,
+        exchange: Outcome,
+        scope: &'static str,
+        user: (&'static str, &'static str),
+        refresh: Outcome,
+        set_member: Outcome,
+    }
+
+    impl Default for FakeDiscord {
+        fn default() -> Self {
+            Self {
+                calls: Mutex::default(),
+                exchange: Outcome::Ok,
+                scope: "identify role_connections.write",
+                user: ("d1", "alice"),
+                refresh: Outcome::Ok,
+                set_member: Outcome::Ok,
+            }
+        }
+    }
+
+    impl FakeDiscord {
+        fn record(&self, call: String) {
+            self.calls.lock().unwrap().push(call);
+        }
+
+        fn calls(&self) -> Vec<String> {
+            self.calls.lock().unwrap().clone()
+        }
+
+        fn tokens(&self, refresh_token: &str) -> Tokens {
+            Tokens {
+                access_token: format!("access-for-{refresh_token}"),
+                refresh_token: refresh_token.into(),
+                scope: self.scope.into(),
+            }
+        }
+    }
+
+    impl DiscordOAuth for FakeDiscord {
+        fn exchange_code<'a>(&'a self, code: &'a str) -> OAuthFuture<'a, Tokens> {
+            self.record(format!("exchange {code}"));
+            let result = self.exchange.result(self.tokens("new-refresh"));
+            Box::pin(async move { result })
+        }
+        fn refresh<'a>(&'a self, refresh_token: &'a str) -> OAuthFuture<'a, Tokens> {
+            self.record(format!("refresh {refresh_token}"));
+            let result = self
+                .refresh
+                .result(self.tokens(&format!("{refresh_token}-rotated")));
+            Box::pin(async move { result })
+        }
+        fn current_user<'a>(&'a self, access_token: &'a str) -> OAuthFuture<'a, DiscordUser> {
+            self.record(format!("user {access_token}"));
+            let (id, username) = self.user;
+            Box::pin(async move {
+                Ok(DiscordUser {
+                    id: id.into(),
+                    username: username.into(),
+                })
+            })
+        }
+        fn set_member<'a>(&'a self, access_token: &'a str, member: bool) -> OAuthFuture<'a, ()> {
+            self.record(format!("set_member {member} {access_token}"));
+            let result = self.set_member.result(());
+            Box::pin(async move { result })
+        }
+        fn revoke<'a>(&'a self, refresh_token: &'a str) -> OAuthFuture<'a, ()> {
+            self.record(format!("revoke {refresh_token}"));
+            Box::pin(async { Ok(()) })
+        }
+    }
+
+    fn link(user: &str, discord: &str, refresh: &str) -> Link {
+        Link {
+            user_id: user.into(),
+            discord_id: discord.into(),
+            discord_username: format!("name-{discord}"),
+            refresh_token: refresh.into(),
+            linked_at: 1,
+        }
+    }
+
+    struct Harness {
+        discord: Arc<FakeDiscord>,
+        links: Arc<MemoryLinks>,
+        state: AppState,
+    }
+
+    fn harness(discord: FakeDiscord, links: Vec<Link>, manage_role_connection: bool) -> Harness {
+        let discord = Arc::new(discord);
+        let links = Arc::new(MemoryLinks::with(links));
+        let (mut state, _) = state(true);
+        state.discord = Some(Arc::new(DiscordLinking {
+            oauth: discord.clone(),
+            links: links.clone(),
+            manage_role_connection,
+        }));
+        Harness {
+            discord,
+            links,
+            state,
+        }
+    }
+
+    async fn call(
+        state: AppState,
+        method: Method,
+        body: Option<Value>,
+    ) -> (StatusCode, Option<Value>) {
+        let mut request = Request::builder()
+            .method(method)
+            .uri("/api/account/discord")
+            .header(
+                header::AUTHORIZATION,
+                format!("Bearer {}", token_with(|_| {})),
+            );
+        let body = match body {
+            Some(body) => {
+                request = request.header(header::CONTENT_TYPE, "application/json");
+                Body::from(body.to_string())
+            }
+            None => Body::empty(),
+        };
+        let response = router(state)
+            .oneshot(request.body(body).unwrap())
+            .await
+            .unwrap();
+        let status = response.status();
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        (status, serde_json::from_slice(&bytes).ok())
+    }
+
+    async fn connect(h: &Harness) -> (StatusCode, Option<Value>) {
+        call(
+            h.state.clone(),
+            Method::POST,
+            Some(json!({ "code": "abc" })),
+        )
+        .await
+    }
+
+    async fn disconnect(h: &Harness) -> StatusCode {
+        call(h.state.clone(), Method::DELETE, None).await.0
+    }
+
+    #[tokio::test]
+    async fn unavailable_without_a_discord_application() {
+        let (status, body) = call(state(true).0, Method::GET, None).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(
+            body.unwrap()["error"],
+            "Discord linking isn't available here"
+        );
+    }
+
+    #[tokio::test]
+    async fn requires_sign_in() {
+        let h = harness(FakeDiscord::default(), vec![], true);
+        let response = router(h.state)
+            .oneshot(
+                Request::get("/api/account/discord")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn status_reports_the_link_and_scopes() {
+        let h = harness(
+            FakeDiscord::default(),
+            vec![link("user-123", "d1", "r")],
+            true,
+        );
+        let (status, body) = call(h.state.clone(), Method::GET, None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            body,
+            Some(
+                json!({ "linked": true, "username": "name-d1", "scopes": "identify role_connections.write" })
+            )
+        );
+        let dev = harness(FakeDiscord::default(), vec![], false);
+        let (_, body) = call(dev.state.clone(), Method::GET, None).await;
+        assert_eq!(body, Some(json!({ "linked": false, "scopes": "identify" })));
+    }
+
+    #[tokio::test]
+    async fn connecting_in_prod_links_and_sets_the_role_connection() {
+        let h = harness(FakeDiscord::default(), vec![], true);
+        let (status, body) = connect(&h).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body.unwrap()["username"], "alice");
+        assert_eq!(
+            h.discord.calls(),
+            [
+                "exchange abc",
+                "user access-for-new-refresh",
+                "set_member true access-for-new-refresh"
+            ]
+        );
+        let saved = h.links.all();
+        assert_eq!(saved.len(), 1);
+        assert_eq!(
+            (
+                saved[0].user_id.as_str(),
+                saved[0].discord_id.as_str(),
+                saved[0].refresh_token.as_str()
+            ),
+            ("user-123", "d1", "new-refresh")
+        );
+    }
+
+    #[tokio::test]
+    async fn connecting_in_dev_only_records_the_link() {
+        let discord = FakeDiscord {
+            scope: "identify",
+            ..FakeDiscord::default()
+        };
+        let h = harness(discord, vec![], false);
+        assert_eq!(connect(&h).await.0, StatusCode::OK);
+        assert_eq!(
+            h.discord.calls(),
+            ["exchange abc", "user access-for-new-refresh"]
+        );
+        assert_eq!(
+            h.links.all()[0].refresh_token,
+            "",
+            "dev keeps no Discord credentials"
+        );
+    }
+
+    #[tokio::test]
+    async fn expired_codes_are_rejected() {
+        let h = harness(
+            FakeDiscord {
+                exchange: Outcome::InvalidGrant,
+                ..FakeDiscord::default()
+            },
+            vec![],
+            true,
+        );
+        assert_eq!(connect(&h).await.0, StatusCode::BAD_REQUEST);
+        assert_eq!(h.links.all(), Vec::<Link>::new());
+    }
+
+    #[tokio::test]
+    async fn discord_outages_are_a_bad_gateway() {
+        let h = harness(
+            FakeDiscord {
+                exchange: Outcome::Fail,
+                ..FakeDiscord::default()
+            },
+            vec![],
+            true,
+        );
+        assert_eq!(connect(&h).await.0, StatusCode::BAD_GATEWAY);
+    }
+
+    #[tokio::test]
+    async fn prod_requires_the_role_connection_scope() {
+        let h = harness(
+            FakeDiscord {
+                scope: "identify",
+                ..FakeDiscord::default()
+            },
+            vec![],
+            true,
+        );
+        assert_eq!(connect(&h).await.0, StatusCode::BAD_REQUEST);
+        assert_eq!(h.links.all(), Vec::<Link>::new());
+        assert!(
+            !h.discord
+                .calls()
+                .iter()
+                .any(|c| c.starts_with("set_member"))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_discord_account_linked_elsewhere_is_a_conflict() {
+        let h = harness(
+            FakeDiscord::default(),
+            vec![link("someone-else", "d1", "r")],
+            true,
+        );
+        assert_eq!(connect(&h).await.0, StatusCode::CONFLICT);
+        assert_eq!(h.links.all(), [link("someone-else", "d1", "r")]);
+        assert!(
+            !h.discord
+                .calls()
+                .iter()
+                .any(|c| c.starts_with("set_member"))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_failed_role_connection_undoes_the_link() {
+        let h = harness(
+            FakeDiscord {
+                set_member: Outcome::Fail,
+                ..FakeDiscord::default()
+            },
+            vec![],
+            true,
+        );
+        assert_eq!(connect(&h).await.0, StatusCode::BAD_GATEWAY);
+        assert_eq!(h.links.all(), Vec::<Link>::new());
+    }
+
+    #[tokio::test]
+    async fn switching_discord_accounts_clears_the_old_role_connection() {
+        let h = harness(
+            FakeDiscord::default(),
+            vec![link("user-123", "d0", "old")],
+            true,
+        );
+        assert_eq!(connect(&h).await.0, StatusCode::OK);
+        assert_eq!(
+            h.discord.calls()[3..],
+            [
+                "refresh old",
+                "set_member false access-for-old-rotated",
+                "revoke old-rotated"
+            ]
+        );
+        assert_eq!(h.links.all()[0].discord_id, "d1");
+    }
+
+    #[tokio::test]
+    async fn disconnecting_in_prod_clears_the_role_and_revokes() {
+        let h = harness(
+            FakeDiscord::default(),
+            vec![link("user-123", "d1", "r1")],
+            true,
+        );
+        assert_eq!(disconnect(&h).await, StatusCode::NO_CONTENT);
+        assert_eq!(
+            h.discord.calls(),
+            [
+                "refresh r1",
+                "set_member false access-for-r1-rotated",
+                "revoke r1-rotated"
+            ]
+        );
+        assert_eq!(h.links.all(), Vec::<Link>::new());
+    }
+
+    #[tokio::test]
+    async fn disconnecting_keeps_the_rotated_token_when_discord_fails() {
+        let h = harness(
+            FakeDiscord {
+                set_member: Outcome::Fail,
+                ..FakeDiscord::default()
+            },
+            vec![link("user-123", "d1", "r1")],
+            true,
+        );
+        assert_eq!(disconnect(&h).await, StatusCode::BAD_GATEWAY);
+        assert_eq!(h.links.all()[0].refresh_token, "r1-rotated");
+    }
+
+    #[tokio::test]
+    async fn disconnecting_after_removing_the_app_in_discord_still_unlinks() {
+        let h = harness(
+            FakeDiscord {
+                refresh: Outcome::InvalidGrant,
+                ..FakeDiscord::default()
+            },
+            vec![link("user-123", "d1", "r1")],
+            true,
+        );
+        assert_eq!(disconnect(&h).await, StatusCode::NO_CONTENT);
+        assert_eq!(h.discord.calls(), ["refresh r1"]);
+        assert_eq!(h.links.all(), Vec::<Link>::new());
+    }
+
+    #[tokio::test]
+    async fn disconnecting_during_a_discord_outage_keeps_the_link() {
+        let h = harness(
+            FakeDiscord {
+                refresh: Outcome::Fail,
+                ..FakeDiscord::default()
+            },
+            vec![link("user-123", "d1", "r1")],
+            true,
+        );
+        assert_eq!(disconnect(&h).await, StatusCode::BAD_GATEWAY);
+        assert_eq!(h.links.all().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn disconnecting_in_dev_never_calls_discord() {
+        let h = harness(
+            FakeDiscord::default(),
+            vec![link("user-123", "d1", "")],
+            false,
+        );
+        assert_eq!(disconnect(&h).await, StatusCode::NO_CONTENT);
+        assert_eq!(h.discord.calls(), Vec::<String>::new());
+        assert_eq!(h.links.all(), Vec::<Link>::new());
+    }
+
+    #[tokio::test]
+    async fn disconnecting_without_a_link_is_fine() {
+        let h = harness(FakeDiscord::default(), vec![], true);
+        assert_eq!(disconnect(&h).await, StatusCode::NO_CONTENT);
+        assert_eq!(h.discord.calls(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn role_connection_uses_string_booleans() {
+        assert_eq!(
+            role_connection(true),
+            json!({ "platform_name": "fairfieldct.ai", "metadata": { "member": "1" } })
+        );
+        assert_eq!(role_connection(false)["metadata"]["member"], "0");
+    }
 }

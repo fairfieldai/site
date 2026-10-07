@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { User } from "oidc-client-ts";
 import { useEffect, useState } from "react";
 
@@ -54,6 +55,7 @@ export function Account() {
         <DiscordLink />
       </div>
       <p className="account-note">
+        <Link href="/connect/discord/">Connect your Discord account</Link> ·{" "}
         <button type="button" className="link-button" onClick={() => void signOut()}>
           Sign out
         </button>
