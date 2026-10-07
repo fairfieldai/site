@@ -45,7 +45,10 @@ prek install
 
 A push to `main` that touches `web/`, `api/`, or `scripts/` builds the site
 and the Lambda once, deploys both to dev, then waits for approval in the `prod`
-GitHub Environment before deploying the same build to prod. Each deploy:
+GitHub Environment before deploying the same build to prod. A newer push
+cancels builds still in progress, but never a deploy that has started. A deploy
+only runs if its commit is still the tip of `main`, so approving an older run
+can't overwrite a newer one; roll back by reverting on `main`. Each deploy:
 
 1. Writes `config.json` with that environment's Cognito settings.
 2. Updates the Lambda code.
