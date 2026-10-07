@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 
 import { DISCORD_INVITE_URL } from "./links";
 
-// Canonical production origin. dev.fairfieldct.ai serves the same build but
-// sends X-Robots-Tag: noindex, so search engines only index this one.
+// Canonical production origin. dev.fairfieldct.ai serves the same build, and
+// every page's canonical URL points here so search engines list these pages.
 export const SITE_URL = "https://www.fairfieldct.ai";
 export const SITE_NAME = "fairfieldct.ai";
 export const SITE_DESCRIPTION =
