@@ -21,6 +21,11 @@ jobs:
   build-web:
     name: Build web
     runs-on: ubuntu-24.04-arm
+    # A newer push cancels a build still in progress; its deploys then don't run.
+    # The deploy jobs never cancel (see deploy-environment.yml).
+    concurrency:
+      group: ${{ github.workflow }}-build-web
+      cancel-in-progress: true
     permissions:
       contents: read
     defaults:
@@ -67,6 +72,11 @@ jobs:
   build-api:
     name: Build API
     runs-on: ubuntu-24.04-arm
+    # A newer push cancels a build still in progress; its deploys then don't run.
+    # The deploy jobs never cancel (see deploy-environment.yml).
+    concurrency:
+      group: ${{ github.workflow }}-build-api
+      cancel-in-progress: true
     permissions:
       contents: read
     defaults:

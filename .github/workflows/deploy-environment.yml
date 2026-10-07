@@ -38,6 +38,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # Each push to main waits separately for prod approval, so an older run
+      # could be approved after a newer one. Deploy only the current main.
+      - name: Check this is the latest commit on main
+        run: |
+          latest=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$latest" != "$GITHUB_SHA" ]; then
+            echo "::error::main is now at $latest; not deploying older commit $GITHUB_SHA. Deploy from the newest run, or revert on main to roll back."
+            exit 1
+          fi
+
       - name: Download site
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

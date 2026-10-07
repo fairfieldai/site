@@ -6,8 +6,9 @@ on:
 
 permissions: {}
 
+# A new push to a pull request cancels its checks that are still running.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
