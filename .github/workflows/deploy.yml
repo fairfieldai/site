@@ -44,6 +44,15 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
+      # Next.js reuses compiled output from .next/cache across builds.
+      - name: Cache Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('web/pnpm-lock.yaml') }}-${{ hashFiles('web/app/**', 'web/lib/**', 'web/public/**', 'web/next.config.ts') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('web/pnpm-lock.yaml') }}-
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
@@ -69,16 +78,22 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      # cargo-lambda links with Zig against Lambda's older glibc. setup-zig also
+      # caches Zig's global cache, so its runtime libraries aren't rebuilt each run.
+      - name: Setup Zig
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+
+      - name: Install cargo-lambda
+        uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
+        with:
+          tool: cargo-lambda
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: api
 
-      # cargo-lambda links with Zig against Lambda's older glibc.
-      - run: uvx cargo-lambda lambda build --release --arm64 --locked --output-format zip
+      - run: cargo lambda build --release --arm64 --locked --output-format zip
 
       - name: Upload function
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
