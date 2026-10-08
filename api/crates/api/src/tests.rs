@@ -12,6 +12,9 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
+use shared::events::MemoryEvents;
+use shared::subscribers::MemorySubscribers;
+
 use super::{AppState, router};
 use crate::auth::{AuthError, KeySource, Verifier};
 
@@ -50,6 +53,9 @@ fn state(available: bool) -> (AppState, Arc<AtomicUsize>) {
         AppState {
             verifier: Arc::new(verifier),
             discord: None,
+            events: Arc::new(MemoryEvents::default()),
+            subscribers: Arc::new(MemorySubscribers::default()),
+            site_url: "https://www.fairfieldct.ai".into(),
         },
         fetches,
     )
@@ -704,5 +710,552 @@ mod discord_linking {
             json!({ "platform_name": "fairfieldct.ai", "metadata": { "member": "1" } })
         );
         assert_eq!(role_connection(false)["metadata"]["member"], "0");
+    }
+}
+
+/// Sends a request, signed in when `signed_in`, with an optional JSON body.
+async fn request(
+    state: AppState,
+    method: Method,
+    uri: &str,
+    signed_in: bool,
+    body: Option<Value>,
+) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
+    let mut request = Request::builder().method(method).uri(uri);
+    if signed_in {
+        request = request.header(
+            header::AUTHORIZATION,
+            format!("Bearer {}", token_with(|_| {})),
+        );
+    }
+    let body = match body {
+        Some(body) => {
+            request = request.header(header::CONTENT_TYPE, "application/json");
+            Body::from(body.to_string())
+        }
+        None => Body::empty(),
+    };
+    let response = router(state)
+        .oneshot(request.body(body).unwrap())
+        .await
+        .unwrap();
+    let status = response.status();
+    let headers = response.headers().clone();
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    (status, headers, bytes.to_vec())
+}
+
+async fn json_request(
+    state: AppState,
+    method: Method,
+    uri: &str,
+    signed_in: bool,
+    body: Option<Value>,
+) -> (StatusCode, Value) {
+    let (status, _, bytes) = request(state, method, uri, signed_in, body).await;
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
+}
+
+/// A store that fails every call, for error paths.
+struct Broken;
+
+fn broken<T>() -> shared::links::BoxFuture<'static, Result<T, shared::Error>> {
+    Box::pin(async { Err("store down".into()) })
+}
+
+mod events {
+    use shared::events::{Attendee, Event, EventStore, RsvpError, Status};
+    use shared::links::BoxFuture;
+    use shared::time;
+
+    use super::*;
+
+    impl EventStore for Broken {
+        fn list(&self) -> BoxFuture<'_, Result<Vec<Event>, shared::Error>> {
+            broken()
+        }
+        fn get<'a>(&'a self, _: &'a str) -> BoxFuture<'a, Result<Option<Event>, shared::Error>> {
+            broken()
+        }
+        fn save<'a>(&'a self, _: &'a Event) -> BoxFuture<'a, Result<(), shared::Error>> {
+            broken()
+        }
+        fn close<'a>(
+            &'a self,
+            _: &'a str,
+            _: Status,
+        ) -> BoxFuture<'a, Result<bool, shared::Error>> {
+            broken()
+        }
+        fn rsvp<'a>(
+            &'a self,
+            _: &'a str,
+            _: &'a Attendee,
+            _: i64,
+        ) -> BoxFuture<'a, Result<u32, RsvpError>> {
+            Box::pin(async { Err(RsvpError::Store("store down".into())) })
+        }
+        fn cancel_rsvp<'a>(
+            &'a self,
+            _: &'a str,
+            _: &'a str,
+        ) -> BoxFuture<'a, Result<u32, RsvpError>> {
+            Box::pin(async { Err(RsvpError::Store("store down".into())) })
+        }
+        fn rsvps_by_user<'a>(
+            &'a self,
+            _: &'a str,
+        ) -> BoxFuture<'a, Result<Vec<String>, shared::Error>> {
+            broken()
+        }
+        fn attendees<'a>(
+            &'a self,
+            _: &'a str,
+        ) -> BoxFuture<'a, Result<Vec<Attendee>, shared::Error>> {
+            broken()
+        }
+    }
+
+    /// An event starting `offset` seconds from now and lasting two hours.
+    fn event(id: &str, offset: i64, status: Status) -> Event {
+        let starts_at = time::now() + offset;
+        Event {
+            id: id.into(),
+            name: format!("Meetup {id}"),
+            description: String::new(),
+            starts_at,
+            ends_at: starts_at + 7200,
+            location: "Fairfield Library".into(),
+            url: format!("https://discord.com/events/9/{id}"),
+            status,
+            rsvps: 0,
+        }
+    }
+
+    fn with_events(events: Vec<Event>) -> AppState {
+        let (mut state, _) = state(true);
+        state.events = Arc::new(MemoryEvents::with(events));
+        state
+    }
+
+    fn broken_state() -> AppState {
+        let (mut state, _) = state(true);
+        state.events = Arc::new(Broken);
+        state
+    }
+
+    const DAY: i64 = 86_400;
+
+    #[tokio::test]
+    async fn lists_upcoming_then_past_events_without_signing_in() {
+        let state = with_events(vec![
+            event("1", 7 * DAY, Status::Scheduled),
+            event("2", DAY, Status::Scheduled),
+            event("3", -30 * DAY, Status::Ended),
+            event("4", -2 * DAY, Status::Scheduled),
+            event("5", 3 * DAY, Status::Canceled),
+            event("6", -3 * DAY, Status::Canceled),
+            event("7", -3600, Status::Active),
+        ]);
+        let (status, body) = json_request(state, Method::GET, "/api/events", false, None).await;
+        assert_eq!(status, StatusCode::OK);
+        let listed: Vec<(String, bool, String)> = body["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                (
+                    e["id"].as_str().unwrap().to_owned(),
+                    e["upcoming"].as_bool().unwrap(),
+                    e["status"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect();
+        let expected = [
+            ("7", true, "active"),
+            ("2", true, "scheduled"),
+            ("5", true, "canceled"),
+            ("1", true, "scheduled"),
+            ("4", false, "scheduled"),
+            ("3", false, "ended"),
+        ]
+        .map(|(id, upcoming, status)| (id.to_owned(), upcoming, status.to_owned()));
+        assert_eq!(listed, expected);
+        let first = &body["events"][0];
+        for field in [
+            "name",
+            "description",
+            "starts_at",
+            "ends_at",
+            "location",
+            "url",
+            "rsvps",
+        ] {
+            assert!(!first[field].is_null(), "{field}");
+        }
+    }
+
+    #[tokio::test]
+    async fn calendar_feed_is_public() {
+        let state = with_events(vec![
+            event("2", DAY, Status::Scheduled),
+            event("1", -DAY, Status::Ended),
+        ]);
+        let (status, headers, body) =
+            request(state, Method::GET, "/api/events.ics", false, None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            headers[header::CONTENT_TYPE],
+            "text/calendar; charset=utf-8"
+        );
+        let body = String::from_utf8(body).unwrap();
+        assert!(body.starts_with("BEGIN:VCALENDAR\r\n"));
+        let first = body.find("UID:1@").unwrap();
+        let second = body.find("UID:2@").unwrap();
+        assert!(first < second, "oldest first");
+        assert!(body.contains("URL:https://www.fairfieldct.ai/events/#event-2\r\n"));
+    }
+
+    #[tokio::test]
+    async fn rsvp_requires_sign_in() {
+        let state = with_events(vec![event("2", DAY, Status::Scheduled)]);
+        for method in [Method::PUT, Method::DELETE] {
+            let (status, _) =
+                json_request(state.clone(), method, "/api/events/2/rsvp", false, None).await;
+            assert_eq!(status, StatusCode::UNAUTHORIZED);
+        }
+        let (status, _) = json_request(state, Method::GET, "/api/account/rsvps", false, None).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn members_rsvp_and_change_their_minds() {
+        let state = with_events(vec![event("2", DAY, Status::Scheduled)]);
+        let rsvp = |method| json_request(state.clone(), method, "/api/events/2/rsvp", true, None);
+
+        assert_eq!(
+            rsvp(Method::PUT).await,
+            (StatusCode::OK, json!({ "going": true, "rsvps": 1 }))
+        );
+        assert_eq!(
+            rsvp(Method::PUT).await,
+            (StatusCode::OK, json!({ "going": true, "rsvps": 1 }))
+        );
+        let (_, mine) =
+            json_request(state.clone(), Method::GET, "/api/account/rsvps", true, None).await;
+        assert_eq!(mine, json!({ "events": ["2"] }));
+        let attendees = state.events.attendees("2").await.unwrap();
+        assert_eq!(
+            attendees,
+            [Attendee {
+                user_id: "user-123".into(),
+                username: "user-123".into()
+            }]
+        );
+
+        assert_eq!(
+            rsvp(Method::DELETE).await,
+            (StatusCode::OK, json!({ "going": false, "rsvps": 0 }))
+        );
+        assert_eq!(
+            rsvp(Method::DELETE).await,
+            (StatusCode::OK, json!({ "going": false, "rsvps": 0 }))
+        );
+        let (_, mine) = json_request(state, Method::GET, "/api/account/rsvps", true, None).await;
+        assert_eq!(mine, json!({ "events": [] }));
+    }
+
+    #[tokio::test]
+    async fn rsvps_need_an_upcoming_event() {
+        let state = with_events(vec![
+            event("3", -DAY, Status::Ended),
+            event("5", DAY, Status::Canceled),
+        ]);
+        for (uri, expected) in [
+            ("/api/events/3/rsvp", StatusCode::CONFLICT),
+            ("/api/events/5/rsvp", StatusCode::CONFLICT),
+            ("/api/events/404/rsvp", StatusCode::NOT_FOUND),
+            ("/api/events/not-an-id/rsvp", StatusCode::NOT_FOUND),
+            (
+                "/api/events/123456789012345678901/rsvp",
+                StatusCode::NOT_FOUND,
+            ),
+        ] {
+            let (status, body) = json_request(state.clone(), Method::PUT, uri, true, None).await;
+            assert_eq!(status, expected, "{uri}");
+            assert!(body["error"].is_string(), "{uri}");
+        }
+        let (status, _) = json_request(
+            state,
+            Method::DELETE,
+            "/api/events/not-an-id/rsvp",
+            true,
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn events_that_just_ended_are_past() {
+        let now = time::now();
+        let mut ending = event("1", -7200, Status::Active);
+        ending.ends_at = now;
+        let mut almost = event("2", -7200, Status::Active);
+        almost.ends_at = now + 1;
+        let arranged = crate::events::arrange(vec![ending, almost], now);
+        let placed: Vec<(&str, bool)> = arranged
+            .iter()
+            .map(|(e, up)| (e.id.as_str(), *up))
+            .collect();
+        assert_eq!(placed, [("2", true), ("1", false)]);
+    }
+
+    #[tokio::test]
+    async fn malformed_ids_never_reach_the_store() {
+        for uri in [
+            "/api/events/not-an-id/rsvp",
+            "/api/events/12a/rsvp",
+            "/api/events/123456789012345678901/rsvp",
+        ] {
+            for method in [Method::PUT, Method::DELETE] {
+                let (status, _) = json_request(broken_state(), method, uri, true, None).await;
+                assert_eq!(status, StatusCode::NOT_FOUND, "{uri}");
+            }
+        }
+        // The longest valid snowflake does reach it.
+        let (status, _) = json_request(
+            broken_state(),
+            Method::PUT,
+            "/api/events/12345678901234567890/rsvp",
+            true,
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn store_failures_are_server_errors() {
+        for (method, uri, signed_in) in [
+            (Method::GET, "/api/events", false),
+            (Method::GET, "/api/events.ics", false),
+            (Method::PUT, "/api/events/2/rsvp", true),
+            (Method::DELETE, "/api/events/2/rsvp", true),
+            (Method::GET, "/api/account/rsvps", true),
+        ] {
+            let (status, body) = json_request(broken_state(), method, uri, signed_in, None).await;
+            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{uri}");
+            assert_eq!(body, json!({ "error": "couldn't load events" }), "{uri}");
+        }
+    }
+}
+
+mod email {
+    use shared::links::BoxFuture;
+    use shared::subscribers::{Subscriber, Subscribers};
+
+    use super::*;
+
+    impl Subscribers for Broken {
+        fn get<'a>(
+            &'a self,
+            _: &'a str,
+        ) -> BoxFuture<'a, Result<Option<Subscriber>, shared::Error>> {
+            broken()
+        }
+        fn subscribe(&self, _: Subscriber) -> BoxFuture<'_, Result<(), shared::Error>> {
+            broken()
+        }
+        fn unsubscribe<'a>(&'a self, _: &'a str) -> BoxFuture<'a, Result<bool, shared::Error>> {
+            broken()
+        }
+        fn unsubscribe_token<'a>(
+            &'a self,
+            _: &'a str,
+        ) -> BoxFuture<'a, Result<bool, shared::Error>> {
+            broken()
+        }
+        fn list(&self) -> BoxFuture<'_, Result<Vec<Subscriber>, shared::Error>> {
+            broken()
+        }
+    }
+
+    const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    #[test]
+    fn tokens_are_random_hex() {
+        let token = crate::email::new_token().unwrap();
+        assert_eq!(token.len(), 64);
+        assert!(token.bytes().all(|b| b.is_ascii_hexdigit()));
+        assert_ne!(token, crate::email::new_token().unwrap());
+    }
+
+    #[tokio::test]
+    async fn preferences_require_sign_in() {
+        for method in [Method::GET, Method::PUT] {
+            let (status, _) = json_request(
+                state(true).0,
+                method,
+                "/api/account/email",
+                false,
+                Some(json!({ "announcements": true })),
+            )
+            .await;
+            assert_eq!(status, StatusCode::UNAUTHORIZED);
+        }
+    }
+
+    #[tokio::test]
+    async fn members_opt_in_and_out() {
+        let (state, _) = state(true);
+        let get = || json_request(state.clone(), Method::GET, "/api/account/email", true, None);
+        let put = |on: bool| {
+            json_request(
+                state.clone(),
+                Method::PUT,
+                "/api/account/email",
+                true,
+                Some(json!({ "announcements": on })),
+            )
+        };
+
+        assert_eq!(
+            get().await,
+            (StatusCode::OK, json!({ "announcements": false }))
+        );
+        assert_eq!(
+            put(true).await,
+            (StatusCode::OK, json!({ "announcements": true }))
+        );
+        let subscriber = state.subscribers.get("user-123").await.unwrap().unwrap();
+        assert_eq!(subscriber.username, "user-123");
+        assert_eq!(subscriber.token.len(), 64);
+        // Opting in again keeps the first token.
+        put(true).await;
+        assert_eq!(state.subscribers.list().await.unwrap(), [subscriber]);
+        assert_eq!(
+            get().await,
+            (StatusCode::OK, json!({ "announcements": true }))
+        );
+        assert_eq!(
+            put(false).await,
+            (StatusCode::OK, json!({ "announcements": false }))
+        );
+        assert_eq!(
+            put(false).await,
+            (StatusCode::OK, json!({ "announcements": false }))
+        );
+        assert_eq!(
+            get().await,
+            (StatusCode::OK, json!({ "announcements": false }))
+        );
+
+        let (status, _) = json_request(
+            state,
+            Method::PUT,
+            "/api/account/email",
+            true,
+            Some(json!({ "announcements": "yes" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    async fn unsubscribe_links_work_without_signing_in() {
+        let (mut state, _) = state(true);
+        state.subscribers = Arc::new(MemorySubscribers::with([Subscriber {
+            user_id: "user-123".into(),
+            username: "user-123".into(),
+            token: TOKEN.into(),
+        }]));
+        let unsubscribe = |token: &str| {
+            let uri = format!("/api/email/unsubscribe/{token}");
+            let state = state.clone();
+            async move { json_request(state, Method::POST, &uri, false, None).await }
+        };
+
+        let wrong = TOKEN.replace('0', "1");
+        for token in [wrong.as_str(), "short", &"z".repeat(64)] {
+            assert_eq!(
+                unsubscribe(token).await,
+                (StatusCode::OK, json!({ "unsubscribed": false })),
+                "{token}"
+            );
+        }
+        assert_eq!(state.subscribers.list().await.unwrap().len(), 1);
+        assert_eq!(
+            unsubscribe(TOKEN).await,
+            (StatusCode::OK, json!({ "unsubscribed": true }))
+        );
+        assert_eq!(
+            unsubscribe(TOKEN).await,
+            (StatusCode::OK, json!({ "unsubscribed": false }))
+        );
+        assert_eq!(state.subscribers.list().await.unwrap(), []);
+
+        // The route doesn't exist without a token.
+        let (status, _) =
+            json_request(state, Method::POST, "/api/email/unsubscribe/", false, None).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn malformed_tokens_never_reach_the_store() {
+        let (mut state, _) = state(true);
+        state.subscribers = Arc::new(Broken);
+        let long = "a".repeat(3000);
+        let short = &TOKEN[1..];
+        let not_hex = TOKEN.replace('a', "g");
+        for token in [long.as_str(), short, not_hex.as_str()] {
+            let (status, body) = json_request(
+                state.clone(),
+                Method::POST,
+                &format!("/api/email/unsubscribe/{token}"),
+                false,
+                None,
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{token}");
+            assert_eq!(body, json!({ "unsubscribed": false }));
+        }
+    }
+
+    #[tokio::test]
+    async fn store_failures_are_server_errors() {
+        let (mut state, _) = state(true);
+        state.subscribers = Arc::new(Broken);
+        for (method, uri, signed_in, body) in [
+            (Method::GET, "/api/account/email".to_owned(), true, None),
+            (
+                Method::PUT,
+                "/api/account/email".to_owned(),
+                true,
+                Some(json!({ "announcements": true })),
+            ),
+            (
+                Method::PUT,
+                "/api/account/email".to_owned(),
+                true,
+                Some(json!({ "announcements": false })),
+            ),
+            (
+                Method::POST,
+                format!("/api/email/unsubscribe/{TOKEN}"),
+                false,
+                None,
+            ),
+        ] {
+            let (status, body) = json_request(state.clone(), method, &uri, signed_in, body).await;
+            assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{uri}");
+            assert_eq!(
+                body,
+                json!({ "error": "couldn't update your email preferences" })
+            );
+        }
     }
 }

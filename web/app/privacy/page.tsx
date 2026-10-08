@@ -31,6 +31,15 @@ export default function Privacy() {
         you register, of which we keep only the public part. Cognito also records when your account
         was created and when you last signed in.
       </p>
+      <h3>When you RSVP or turn on meetup emails</h3>
+      <p>
+        When you RSVP to a meetup, we store that you&apos;re going and when you said so, and show
+        how many people are going (never who). When you turn on meetup emails, we record that
+        you&apos;d like them. To send these emails we look up your address in your account when each
+        one goes out; we don&apos;t keep a separate mailing list. You can turn meetup emails off in
+        your <Link href="/account/">account</Link> or with the unsubscribe link in any of them, and
+        change your RSVP on the <Link href="/events/">meetups page</Link>.
+      </p>
       <h3>When you email us</h3>
       <p>
         Messages sent to hello@inbox.fairfieldct.ai are stored so organizers can read and answer
@@ -75,7 +84,8 @@ export default function Privacy() {
       <ul>
         <li>To run your account and let you sign in.</li>
         <li>
-          To reply to your messages and tell you about community events you&apos;ve signed up for.
+          To reply to your messages, count RSVPs, and email you about meetups you&apos;ve
+          RSVP&apos;d to or asked to hear about.
         </li>
         <li>To keep the site, inbox, and Discord server secure and free of spam and abuse.</li>
       </ul>
@@ -93,6 +103,8 @@ export default function Privacy() {
       <ul>
         <li>Account information: until you ask us to delete your account.</li>
         <li>A linked Discord account: until you disconnect it or delete your account.</li>
+        <li>RSVPs: until you change them or delete your account.</li>
+        <li>Meetup email settings: until you turn them off or delete your account.</li>
         <li>Emails to our inbox: up to one year.</li>
         <li>Email delivery, open, and click records: up to one year.</li>
         <li>API logs: 30 days.</li>

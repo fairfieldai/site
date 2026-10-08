@@ -57,6 +57,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Link href="/" className="wordmark">
               fairfieldct<span>.ai</span>
             </Link>
+            <nav className="site-nav" aria-label="Main">
+              <Link href="/events/">Meetups</Link>
+              <Link href="/account/">Account</Link>
+            </nav>
           </header>
           {children}
           <footer className="site-footer">

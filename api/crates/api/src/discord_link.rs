@@ -14,7 +14,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use axum::extract::{FromRef, State};
 use axum::http::StatusCode;
@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shared::links::{Link, LinkStore, SaveError};
 use shared::ssm::Parameter;
+use shared::time::now;
 
 use crate::auth::User;
 
@@ -277,14 +278,6 @@ fn store_failed(error: &dyn std::fmt::Display) -> Response {
 fn discord_failed(error: &OAuthError) -> Response {
     tracing::error!(?error, "Discord request failed");
     self::error(StatusCode::BAD_GATEWAY, "Discord didn't respond; try again")
-}
-
-fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| {
-            i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX)
-        })
 }
 
 async fn status(State(linking): State<Linking>, user: User) -> Response {

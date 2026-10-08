@@ -48,14 +48,14 @@ export function Account() {
   return (
     <div className="account">
       <p className="member">
-        You&apos;re in, <strong>{user.profile.email}</strong>. Watch this space for the first
-        events.
+        You&apos;re in, <strong>{user.profile.email}</strong>. See what&apos;s coming up on our{" "}
+        <Link href="/events/">meetups page</Link>.
       </p>
       <div className="actions">
         <DiscordLink />
       </div>
       <p className="account-note">
-        <Link href="/connect/discord/">Connect your Discord account</Link> ·{" "}
+        <Link href="/account/">Account and email settings</Link> ·{" "}
         <button type="button" className="link-button" onClick={() => void signOut()}>
           Sign out
         </button>

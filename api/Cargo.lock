@@ -16,6 +16,7 @@ name = "api"
 version = "0.1.0"
 dependencies = [
  "aws-config",
+ "aws-lc-rs",
  "aws-sdk-dynamodb",
  "aws-sdk-ssm",
  "axum",
@@ -158,6 +159,31 @@ dependencies = [
  "pin-project-lite",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "aws-sdk-cognitoidentityprovider"
+version = "1.139.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d5eb62b57e0d1565fb7ea7de94a53357fc85f119a9be58e0769eee9270ac3f7"
+dependencies = [
+ "arc-swap",
+ "aws-credential-types",
+ "aws-runtime",
+ "aws-smithy-async",
+ "aws-smithy-http",
+ "aws-smithy-json",
+ "aws-smithy-observability",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "aws-smithy-schema",
+ "aws-smithy-types",
+ "aws-types",
+ "bytes",
+ "fastrand",
+ "http",
+ "regex-lite",
+ "tracing",
 ]
 
 [[package]]
@@ -725,6 +751,7 @@ version = "0.1.0"
 dependencies = [
  "aws-config",
  "aws-lc-rs",
+ "aws-sdk-cognitoidentityprovider",
  "aws-sdk-dynamodb",
  "aws-sdk-ssm",
  "axum",
@@ -2022,6 +2049,7 @@ version = "0.1.0"
 dependencies = [
  "aws-sdk-dynamodb",
  "aws-sdk-ssm",
+ "serde",
  "tokio",
 ]
 
