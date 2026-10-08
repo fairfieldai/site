@@ -13,6 +13,7 @@ use serde_json::{Value, json};
 use tokio::sync::OnceCell;
 
 use shared::ssm::Parameter;
+use shared::time::parse_rfc3339;
 
 /// Milliseconds between the Unix epoch and the Discord epoch (2015-01-01).
 const DISCORD_EPOCH_MS: u64 = 1_420_070_400_000;
@@ -27,6 +28,9 @@ pub struct ScheduledEvent {
     #[serde(default)]
     pub description: Option<String>,
     pub scheduled_start_time: String,
+    /// Required for external events; optional for voice and stage events.
+    #[serde(default)]
+    pub scheduled_end_time: Option<String>,
     pub status: u8,
     pub entity_type: u8,
     #[serde(default)]
@@ -106,60 +110,6 @@ pub fn next_meetup(events: &[ScheduledEvent], now: i64) -> Option<&ScheduledEven
 pub fn snowflake_seconds(id: &str) -> Option<i64> {
     let id: u64 = id.parse().ok()?;
     i64::try_from(((id >> 22) + DISCORD_EPOCH_MS) / 1000).ok()
-}
-
-/// Parses an RFC 3339 timestamp such as `2026-10-15T23:00:00.000000+00:00`
-/// into Unix seconds, ignoring fractional seconds.
-#[must_use]
-pub fn parse_rfc3339(timestamp: &str) -> Option<i64> {
-    let (date, rest) = timestamp.split_once('T')?;
-    let (time, offset) = if let Some(time) = rest.strip_suffix('Z') {
-        (time, 0)
-    } else {
-        let split = rest.rfind(['+', '-'])?;
-        let (time, offset) = rest.split_at(split);
-        let sign = if offset.starts_with('-') { -1 } else { 1 };
-        let (hours, minutes) = offset[1..].split_once(':')?;
-        (
-            time,
-            sign * (number(hours, 23)? * 3600 + number(minutes, 59)? * 60),
-        )
-    };
-    let mut date = date.split('-');
-    let (year, month, day) = (date.next()?, date.next()?, date.next()?);
-    let mut time = time.split('.').next()?.split(':');
-    let (hour, minute, second) = (time.next()?, time.next()?, time.next()?);
-    if date.next().is_some() || time.next().is_some() || year.len() != 4 {
-        return None;
-    }
-    let days = days_from_civil(year.parse().ok()?, number(month, 12)?, number(day, 31)?)?;
-    Some(
-        days * 86_400 + number(hour, 23)? * 3600 + number(minute, 59)? * 60 + number(second, 60)?
-            - offset,
-    )
-}
-
-fn number(digits: &str, max: i64) -> Option<i64> {
-    if digits.len() != 2 || !digits.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    let value = digits.parse().ok()?;
-    (value <= max).then_some(value)
-}
-
-/// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant's
-/// `days_from_civil`).
-fn days_from_civil(year: i64, month: i64, day: i64) -> Option<i64> {
-    if month == 0 || day == 0 {
-        return None;
-    }
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year.div_euclid(400);
-    let year_of_era = year - era * 400;
-    let month_index = (month + 9) % 12;
-    let day_of_year = (153 * month_index + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    Some(era * 146_097 + day_of_era - 719_468)
 }
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + Send + 'a>>;
@@ -275,51 +225,13 @@ mod tests {
             name: format!("Meetup {id}"),
             description: None,
             scheduled_start_time: start.into(),
+            scheduled_end_time: None,
             status,
             entity_type: EXTERNAL,
             channel_id: None,
             entity_metadata: Some(EntityMetadata {
                 location: Some("Fairfield Library".into()),
             }),
-        }
-    }
-
-    #[test]
-    fn parses_rfc3339_variants() {
-        assert_eq!(parse_rfc3339("1970-01-01T00:00:00Z"), Some(0));
-        assert_eq!(
-            parse_rfc3339("2026-10-15T23:00:00+00:00"),
-            Some(1_792_105_200)
-        );
-        assert_eq!(
-            parse_rfc3339("2026-10-15T23:00:00.123456+00:00"),
-            Some(1_792_105_200)
-        );
-        assert_eq!(
-            parse_rfc3339("2026-10-15T19:00:00-04:00"),
-            Some(1_792_105_200)
-        );
-        assert_eq!(parse_rfc3339("2024-02-29T12:00:00Z"), Some(1_709_208_000));
-        assert_eq!(parse_rfc3339("2000-03-01T00:00:00Z"), Some(951_868_800));
-    }
-
-    #[test]
-    fn rejects_malformed_timestamps() {
-        for bad in [
-            "",
-            "2026-10-15",
-            "2026-10-15T23:00",
-            "2026-13-01T00:00:00Z",
-            "2026-10-00T00:00:00Z",
-            "2026-10-15T24:00:00Z",
-            "2026-10-15T23:60:00Z",
-            "2026-10-15T23:00:00",
-            "2026-10-15T23:00:00+0000",
-            "26-10-15T23:00:00Z",
-            "2026-10-15T2a:00:00Z",
-            "2026-10-15-01T23:00:00Z",
-        ] {
-            assert_eq!(parse_rfc3339(bad), None, "{bad}");
         }
     }
 

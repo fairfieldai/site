@@ -7,7 +7,7 @@
 
 use lambda_http::{Error, tracing};
 
-use crate::events::{Announcer, EventSource, ScheduledEvent};
+use crate::events::{Announcer, ScheduledEvent};
 
 const HOUR: i64 = 3600;
 const DAY: i64 = 24 * HOUR;
@@ -75,17 +75,15 @@ pub fn due(
 ///
 /// # Errors
 ///
-/// If the events can't be read or a post fails. Posts before the failure stay
-/// posted.
-pub async fn run(
-    events: &dyn EventSource,
+/// If a post fails. Posts before the failure stay posted.
+pub async fn post(
+    events: &[ScheduledEvent],
     announcer: &dyn Announcer,
     guild_id: &str,
     run_at: i64,
     interval: i64,
 ) -> Result<usize, Error> {
-    let events = events.scheduled_events().await?;
-    let posts = due(&events, run_at, interval);
+    let posts = due(events, run_at, interval);
     for (reminder, event) in &posts {
         tracing::info!(event = event.id, reminder = ?reminder, "posting meetup reminder");
         announcer
@@ -100,7 +98,8 @@ mod tests {
     use std::sync::Mutex;
 
     use super::*;
-    use crate::events::{BoxFuture, EntityMetadata, parse_rfc3339};
+    use crate::events::{BoxFuture, EntityMetadata};
+    use shared::time::parse_rfc3339;
 
     const INTERVAL: i64 = 15 * 60;
     const DISCORD_EPOCH: i64 = 1_420_070_400;
@@ -117,6 +116,7 @@ mod tests {
             name: "AI Night".into(),
             description: None,
             scheduled_start_time: start.into(),
+            scheduled_end_time: None,
             status: 1,
             entity_type: 3,
             channel_id: None,
@@ -221,15 +221,6 @@ mod tests {
         assert_eq!(Reminder::Soon.heading("X"), "Starting in an hour: X");
     }
 
-    struct Events(Result<Vec<ScheduledEvent>, String>);
-
-    impl EventSource for Events {
-        fn scheduled_events(&self) -> BoxFuture<'_, Vec<ScheduledEvent>> {
-            let result = self.0.clone().map_err(Error::from);
-            Box::pin(async move { result })
-        }
-    }
-
     #[derive(Default)]
     struct Posts {
         sent: Mutex<Vec<String>>,
@@ -249,15 +240,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_posts_each_due_reminder() {
+    async fn post_sends_each_due_reminder() {
         let run_at = at("2026-10-14T23:00:00Z");
-        let source = Events(Ok(vec![event(
-            at("2026-09-01T00:00:00Z"),
-            "2026-10-15T23:05:00Z",
-        )]));
+        let events = [event(at("2026-09-01T00:00:00Z"), "2026-10-15T23:05:00Z")];
         let posts = Posts::default();
         assert_eq!(
-            run(&source, &posts, "9", run_at, INTERVAL).await.unwrap(),
+            post(&events, &posts, "9", run_at, INTERVAL).await.unwrap(),
             1
         );
         let sent = posts.sent.lock().unwrap();
@@ -266,28 +254,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn run_with_nothing_due_posts_nothing() {
+    async fn post_with_nothing_due_posts_nothing() {
         let posts = Posts::default();
-        let source = Events(Ok(vec![]));
-        assert_eq!(run(&source, &posts, "9", 0, INTERVAL).await.unwrap(), 0);
+        assert_eq!(post(&[], &posts, "9", 0, INTERVAL).await.unwrap(), 0);
         assert!(posts.sent.lock().unwrap().is_empty());
     }
 
     #[tokio::test]
-    async fn run_fails_when_events_or_posts_fail() {
-        let posts = Posts::default();
-        let unavailable = Events(Err("discord down".into()));
-        assert!(run(&unavailable, &posts, "9", 0, INTERVAL).await.is_err());
-
+    async fn post_fails_when_a_post_fails() {
         let run_at = at("2026-10-14T23:00:00Z");
-        let source = Events(Ok(vec![event(
-            at("2026-09-01T00:00:00Z"),
-            "2026-10-15T23:00:00Z",
-        )]));
+        let events = [event(at("2026-09-01T00:00:00Z"), "2026-10-15T23:00:00Z")];
         let failing = Posts {
             fail: true,
             ..Posts::default()
         };
-        assert!(run(&source, &failing, "9", run_at, INTERVAL).await.is_err());
+        assert!(
+            post(&events, &failing, "9", run_at, INTERVAL)
+                .await
+                .is_err()
+        );
     }
 }

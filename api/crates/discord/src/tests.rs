@@ -265,6 +265,7 @@ fn meetup_event(id: &str, start: &str, status: u8) -> ScheduledEvent {
         name: "AI Night".into(),
         description: None,
         scheduled_start_time: start.into(),
+        scheduled_end_time: None,
         status,
         entity_type: 3,
         channel_id: None,

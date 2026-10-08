@@ -4,6 +4,7 @@ import { STRUCTURED_DATA, pageMetadata } from "@/lib/site";
 
 import { Account } from "./components/account";
 import { Horizon } from "./components/horizon";
+import { NextMeetup } from "./components/next-meetup";
 
 const plans = [
   {
@@ -47,6 +48,8 @@ export default function Home() {
         </div>
         <Horizon />
       </main>
+
+      <NextMeetup />
 
       <section className="plans" aria-labelledby="plans-heading">
         <h2 id="plans-heading">What we have in mind</h2>

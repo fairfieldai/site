@@ -420,3 +420,162 @@ a.button {
     transform: none;
   }
 }
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.9375rem;
+}
+
+.site-nav a {
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  color: var(--sea);
+}
+
+.events {
+  max-width: 48rem;
+  padding: clamp(2.5rem, 7vh, 4.5rem) 0 2rem;
+}
+
+.events h1 {
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
+}
+
+.event-section {
+  margin-top: 3rem;
+}
+
+.event-section h2,
+.legal .account h2 {
+  font-size: 1.75rem;
+}
+
+.legal .account h2 {
+  margin-top: 2.5rem;
+}
+
+.event-list {
+  list-style: none;
+  margin: 1.25rem 0 1.5rem;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.event,
+.next-meetup {
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  /* Leaves room above a linked event when the page scrolls to it. */
+  scroll-margin-top: 1.5rem;
+}
+
+.event:target {
+  border-color: var(--sea);
+}
+
+.event h3,
+.next-meetup h2 {
+  margin-top: 0.4rem;
+  font-size: 1.5rem;
+}
+
+.event .actions {
+  margin-top: 1rem;
+}
+
+.event-canceled h3 {
+  text-decoration: line-through;
+  color: var(--ink-muted);
+}
+
+.event-when {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.event-badge {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sun) 30%, transparent);
+  color: var(--ink);
+}
+
+.event-where {
+  margin: 0.4rem 0 0;
+  color: var(--ink-muted);
+}
+
+.event-description {
+  margin: 0.75rem 0 0;
+  white-space: pre-line;
+}
+
+.event-list-past .event {
+  padding: 1rem 1.25rem;
+}
+
+.event-list-past h3 {
+  font-size: 1.25rem;
+}
+
+.going {
+  font-weight: 600;
+  color: var(--sea);
+}
+
+.next-meetup {
+  margin-bottom: clamp(2.5rem, 6vh, 4rem);
+  max-width: 44rem;
+  border-left: 4px solid var(--sun);
+}
+
+.next-meetup .button {
+  margin-top: 1rem;
+}
+
+.toggle {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  cursor: pointer;
+}
+
+.toggle input {
+  margin-top: 0.35rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--sea);
+}
+
+.toggle .account-note {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.account-actions {
+  margin-top: 2.5rem;
+}

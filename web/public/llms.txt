@@ -7,7 +7,8 @@ Key facts:
 - Location: Fairfield, Connecticut, USA (Fairfield County, on Long Island Sound)
 - Contact: hello@inbox.fairfieldct.ai
 - Join: create a free account at https://www.fairfieldct.ai/ ("Join the community"), or join the Discord server at https://discord.gg/wC8UCHpXJj
-- Meetups: scheduled in the Discord server's Events and announced in its #announcements channel. In Discord, the /meetup command shows the next one.
+- Meetups: listed at https://www.fairfieldct.ai/events/, where members RSVP with their free account. Organizers schedule them as events in the Discord server, which announces them in #announcements; the /meetup command shows the next one. A calendar feed is at https://www.fairfieldct.ai/api/events.ics.
+- Email: members can turn on emails about new meetups and day-before reminders in their account settings at https://www.fairfieldct.ai/account/. Members who RSVP get a reminder the day before and a note if the meetup is canceled.
 - Discord Member role: members who link their Discord account at https://www.fairfieldct.ai/connect/discord/ get the Member role through Discord's Linked Roles.
 - Planned activities: relaxed meetups about AI and technology (no expertise required), demo nights where members show what they're building, and hands-on learning sessions for using AI tools at work, school, and home.
 - Members must be 13 or older. Community guidelines: be respectful; no harassment, spam, or scams; don't share others' personal information; nothing illegal or sexually explicit; don't use AI-generated content to deceive.
@@ -15,6 +16,7 @@ Key facts:
 ## Pages
 
 - [Home](https://www.fairfieldct.ai/): What the community is, what's planned, and how to join
+- [Meetups](https://www.fairfieldct.ai/events/): Upcoming and past meetups, with RSVPs and a calendar feed
 - [Terms of Service](https://www.fairfieldct.ai/terms/): Community guidelines and terms for the site, events, and Discord
 - [Privacy Policy](https://www.fairfieldct.ai/privacy/): What data is collected, how it's used and kept, and how to have it deleted
 

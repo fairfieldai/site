@@ -6,7 +6,9 @@
 //! endpoint URLs are saved.
 
 pub mod events;
+pub mod mail;
 pub mod reminders;
+pub mod site;
 
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};

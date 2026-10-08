@@ -5,6 +5,9 @@
 
 pub mod auth;
 pub mod discord_link;
+pub mod email;
+pub mod events;
+mod ics;
 
 use std::sync::Arc;
 
@@ -16,12 +19,20 @@ use serde::Serialize;
 
 use crate::auth::{User, Verifier};
 use crate::discord_link::Linking;
+use crate::email::Subscriptions;
+use crate::events::Events;
+
+/// The site's origin, e.g. `https://www.fairfieldct.ai`, for absolute links.
+pub type SiteUrl = Arc<str>;
 
 #[derive(Clone)]
 pub struct AppState {
     pub verifier: Arc<Verifier>,
     /// Discord account linking, when this environment has it.
     pub discord: Linking,
+    pub events: Events,
+    pub subscribers: Subscriptions,
+    pub site_url: SiteUrl,
 }
 
 impl FromRef<AppState> for Arc<Verifier> {
@@ -33,6 +44,24 @@ impl FromRef<AppState> for Arc<Verifier> {
 impl FromRef<AppState> for Linking {
     fn from_ref(state: &AppState) -> Self {
         state.discord.clone()
+    }
+}
+
+impl FromRef<AppState> for Events {
+    fn from_ref(state: &AppState) -> Self {
+        Arc::clone(&state.events)
+    }
+}
+
+impl FromRef<AppState> for Subscriptions {
+    fn from_ref(state: &AppState) -> Self {
+        Arc::clone(&state.subscribers)
+    }
+}
+
+impl FromRef<AppState> for SiteUrl {
+    fn from_ref(state: &AppState) -> Self {
+        Arc::clone(&state.site_url)
     }
 }
 
@@ -51,6 +80,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/health", get(health))
         .route("/api/me", get(me))
         .merge(discord_link::routes())
+        .merge(events::routes())
+        .merge(email::routes())
         .fallback(not_found)
         .with_state(state)
 }

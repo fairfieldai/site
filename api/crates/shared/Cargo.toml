@@ -7,6 +7,7 @@ publish.workspace = true
 [dependencies]
 aws-sdk-dynamodb = { workspace = true, features = ["default-https-client", "rt-tokio"] }
 aws-sdk-ssm = { workspace = true, features = ["default-https-client", "rt-tokio"] }
+serde = { workspace = true, features = ["derive", "std"] }
 tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
