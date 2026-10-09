@@ -8,7 +8,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/events/",
   title: "Meetups",
   description:
-    "Upcoming and past fairfieldct.ai meetups in Fairfield, Connecticut. RSVP with your free account, get email reminders, or add the calendar to your phone.",
+    "Upcoming and past fairfieldct.ai meetups in Fairfield, Connecticut. RSVP with just your email, get reminders, or add the calendar to your phone.",
 });
 
 export default function Events() {

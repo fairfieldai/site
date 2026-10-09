@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { STRUCTURED_DATA, pageMetadata } from "@/lib/site";
+import { STRUCTURED_DATA, TOWNS, pageMetadata } from "@/lib/site";
 
 import { Account } from "./components/account";
 import { Horizon } from "./components/horizon";
@@ -35,14 +35,14 @@ export default function Home() {
       />
       <main className="hero hero-home">
         <div className="hero-copy">
-          <p className="eyebrow">Coming soon</p>
+          <p className="eyebrow">{TOWNS.join(" · ")}</p>
           <h1>
-            A local AI community for <em>Fairfield</em>.
+            Neighbors figuring out AI <em>together</em>.
           </h1>
           <p className="lede">
-            A place for builders, thinkers, and the AI-curious from across town to learn from each
-            other, share what they&apos;re making, and talk through what this technology means for
-            where we live. Technical or not, you&apos;re welcome here.
+            A friendly, local group for anyone curious about AI: parents, teachers, small-business
+            owners, retirees, and people who build with it every day. Come learn from each other and
+            talk through what this technology means for where we live. No expertise required.
           </p>
           <Account />
         </div>

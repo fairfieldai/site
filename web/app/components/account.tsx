@@ -5,16 +5,7 @@ import type { User } from "oidc-client-ts";
 import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
-import { getUser, signIn, signOut } from "@/lib/auth";
-import { DISCORD_INVITE_URL } from "@/lib/links";
-
-function DiscordLink() {
-  return (
-    <a className="button button-secondary" href={DISCORD_INVITE_URL}>
-      Join us on Discord
-    </a>
-  );
-}
+import { getUser, joinPath, signIn, signOut } from "@/lib/auth";
 
 /** The linked Discord username, or null when not linked or the status can't be loaded. */
 async function linkedDiscordUsername(): Promise<string | null> {
@@ -51,10 +42,9 @@ export function Account() {
     return (
       <div className="account">
         <div className="actions">
-          <button type="button" className="button" onClick={() => void signIn()}>
+          <Link className="button" href={joinPath()}>
             Join the community
-          </button>
-          <DiscordLink />
+          </Link>
         </div>
         <p className="account-note">
           Already joined?{" "}
@@ -72,9 +62,6 @@ export function Account() {
         You&apos;re in, <strong>{user.profile.email}</strong>. See what&apos;s coming up on our{" "}
         <Link href="/events/">meetups page</Link>.
       </p>
-      <div className="actions">
-        <DiscordLink />
-      </div>
       <p className="account-note">
         <Link href="/account/">Account and email settings</Link> ·{" "}
         <Link href="/connect/discord/">

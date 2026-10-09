@@ -5,7 +5,7 @@ import type { User } from "oidc-client-ts";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { apiError, apiFetch } from "@/lib/api";
-import { getUser, signIn } from "@/lib/auth";
+import { getUser, joinPath } from "@/lib/auth";
 import {
   CALENDAR_PATH,
   type SiteEvent,
@@ -52,13 +52,9 @@ function Rsvp({
   if (!user) {
     return (
       <div className="actions">
-        <button
-          type="button"
-          className="button"
-          onClick={() => void signIn(`/events/#${eventAnchor(event)}`)}
-        >
-          Sign in to RSVP
-        </button>
+        <Link className="button" href={joinPath(`/events/#${eventAnchor(event)}`)}>
+          RSVP
+        </Link>
       </div>
     );
   }

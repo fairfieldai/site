@@ -31,6 +31,10 @@ export const metadata: Metadata = {
   authors: [{ name: `${SITE_NAME} organizers`, url: "/humans.txt" }],
   keywords: [
     "Fairfield",
+    "Southport",
+    "Westport",
+    "Easton",
+    "Trumbull",
     "Connecticut",
     "AI",
     "artificial intelligence",

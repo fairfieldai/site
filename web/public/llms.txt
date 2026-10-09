@@ -1,12 +1,12 @@
 # fairfieldct.ai
 
-> fairfieldct.ai is a volunteer-run local community in Fairfield, Connecticut (USA) for builders, thinkers, and the AI-curious to learn from each other, share what they're making, and talk through what AI means for the town. Technical or not, everyone is welcome. The website is new; the community gathers on Discord and at in-person meetups.
+> fairfieldct.ai is a volunteer-run local community for neighbors in Fairfield, Southport, Westport, Easton, and Trumbull, Connecticut (USA) who are curious about AI: parents, teachers, small-business owners, retirees, and people who build with it every day. Members learn from each other, share what they're making, and talk through what AI means for where they live. No expertise required. The community gathers at in-person meetups.
 
 Key facts:
 
-- Location: Fairfield, Connecticut, USA (Fairfield County, on Long Island Sound)
+- Location: Fairfield, Connecticut, USA (Fairfield County, on Long Island Sound), for neighbors in Fairfield, Southport, Westport, Easton, and Trumbull
 - Contact: hello@inbox.fairfieldct.ai
-- Join: create a free account at https://www.fairfieldct.ai/ ("Join the community"), or join the Discord server at https://discord.gg/wC8UCHpXJj
+- Join: create a free account with just an email address at https://www.fairfieldct.ai/join/ (no password needed; we email a sign-in code), or join the Discord server at https://discord.gg/wC8UCHpXJj
 - Meetups: listed at https://www.fairfieldct.ai/events/, where members RSVP with their free account. Organizers schedule them as events in the Discord server, which announces them in #announcements; the /meetup command shows the next one. A calendar feed is at https://www.fairfieldct.ai/api/events.ics.
 - Email: members can turn on emails about new meetups and day-before reminders in their account settings at https://www.fairfieldct.ai/account/. Members who RSVP get a reminder the day before and a note if the meetup is canceled.
 - Discord Member role: members who link their Discord account at https://www.fairfieldct.ai/connect/discord/ get the Member role through Discord's Linked Roles.
@@ -16,6 +16,7 @@ Key facts:
 ## Pages
 
 - [Home](https://www.fairfieldct.ai/): What the community is, what's planned, and how to join
+- [Join](https://www.fairfieldct.ai/join/): Create a free account with an emailed code
 - [Meetups](https://www.fairfieldct.ai/events/): Upcoming and past meetups, with RSVPs and a calendar feed
 - [Terms of Service](https://www.fairfieldct.ai/terms/): Community guidelines and terms for the site, events, and Discord
 - [Privacy Policy](https://www.fairfieldct.ai/privacy/): What data is collected, how it's used and kept, and how to have it deleted

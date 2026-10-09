@@ -26,10 +26,11 @@ export default function Privacy() {
       <h2>What we collect</h2>
       <h3>When you create an account</h3>
       <p>
-        Accounts are managed by Amazon Cognito. We store your email address and the sign-in methods
-        you set up: a password, which Cognito stores securely and we can never see, and any passkeys
-        you register, of which we keep only the public part. Cognito also records when your account
-        was created and when you last signed in.
+        Accounts are managed by Amazon Cognito. We store your email address and any sign-in methods
+        you set up. You don&apos;t need a password: you can sign in with a code we email you. If you
+        set a password, Cognito stores it securely and we can never see it, and for any passkeys you
+        register we keep only the public part. Cognito also records when your account was created
+        and when you last signed in.
       </p>
       <h3>When you RSVP or turn on meetup emails</h3>
       <p>
