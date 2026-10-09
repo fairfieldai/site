@@ -215,8 +215,20 @@ export function EventList() {
         )}
         {load.kind === "ready" && upcoming.length === 0 && (
           <p className="member">
-            Nothing on the calendar yet. Turn on meetup emails in your{" "}
-            <Link href="/account/">account</Link> and we&apos;ll tell you when the next one is set.
+            Nothing on the calendar yet.{" "}
+            {user ? (
+              <>
+                Turn on meetup emails in your <Link href="/account/">account</Link> and we&apos;ll
+                tell you when the next one is set.
+              </>
+            ) : (
+              // Joining doesn't turn on meetup emails, so return to the account
+              // page, where the switch is.
+              <>
+                <Link href={joinPath("/account/")}>Join</Link> to hear when the next one is set. All
+                it takes is your email.
+              </>
+            )}
           </p>
         )}
         {upcoming.length > 0 && (
