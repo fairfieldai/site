@@ -5,7 +5,7 @@ import type { User } from "oidc-client-ts";
 import { useEffect, useState } from "react";
 
 import { apiError, apiFetch } from "@/lib/api";
-import { getUser, signIn, signOut } from "@/lib/auth";
+import { getUser, joinPath, signIn, signOut } from "@/lib/auth";
 
 type View =
   | { kind: "loading" }
@@ -76,6 +76,9 @@ export default function Account() {
                 Sign in
               </button>
             </div>
+            <p className="account-note">
+              New here? <Link href={joinPath("/account/")}>Join with just your email</Link>.
+            </p>
           </>
         )}
         {view.kind === "ready" && (

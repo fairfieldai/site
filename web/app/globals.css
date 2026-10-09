@@ -179,6 +179,7 @@ a:hover {
 
 .eyebrow::before {
   content: "";
+  flex-shrink: 0;
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
@@ -578,4 +579,33 @@ a.button {
 
 .account-actions {
   margin-top: 2.5rem;
+}
+
+.join-form {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 26rem;
+}
+
+.join-form label {
+  font-weight: 600;
+}
+
+.join-form input {
+  padding: 0.75rem 1rem;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+}
+
+.join-form input:focus-visible {
+  outline: 2px solid var(--sea);
+  outline-offset: 1px;
+}
+
+.join-form .actions,
+.join-form .member + label {
+  margin-top: 0.75rem;
 }

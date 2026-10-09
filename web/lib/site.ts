@@ -8,9 +8,20 @@ import { DISCORD_INVITE_URL } from "./links";
 export const SITE_URL = "https://www.fairfieldct.ai";
 export const SITE_NAME = "fairfieldct.ai";
 export const SITE_DESCRIPTION =
-  "A local community in Fairfield, Connecticut for builders, thinkers, and the AI-curious to learn, share, and build with AI together.";
+  "Neighbors in Fairfield, Southport, Westport, Easton, and Trumbull, Connecticut, figuring out AI together. Meetups, demo nights, and hands-on learning. No expertise required.";
 export const CONTACT_EMAIL = "hello@inbox.fairfieldct.ai";
 export const GITHUB_URL = "https://github.com/fairfieldai";
+
+/** The towns the community draws from, roughly 15 minutes' drive from Fairfield. */
+export const TOWNS = ["Fairfield", "Southport", "Westport", "Easton", "Trumbull"];
+
+const CONNECTICUT = { "@type": "State", name: "Connecticut" };
+// Southport is a village within Fairfield rather than a town of its own.
+const AREA_SERVED = TOWNS.map((name) =>
+  name === "Southport"
+    ? { "@type": "Place", name, containedInPlace: { "@type": "City", name: "Fairfield" } }
+    : { "@type": "City", name, containedInPlace: CONNECTICUT },
+);
 
 /** schema.org description of the community and the site, for search engines and agents. */
 export const STRUCTURED_DATA = {
@@ -24,11 +35,7 @@ export const STRUCTURED_DATA = {
       logo: `${SITE_URL}/icon-512.png`,
       email: CONTACT_EMAIL,
       description: SITE_DESCRIPTION,
-      areaServed: {
-        "@type": "City",
-        name: "Fairfield",
-        containedInPlace: { "@type": "State", name: "Connecticut" },
-      },
+      areaServed: AREA_SERVED,
       knowsAbout: ["Artificial intelligence", "Machine learning", "Large language models"],
       sameAs: [DISCORD_INVITE_URL, GITHUB_URL],
     },

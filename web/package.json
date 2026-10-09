@@ -8,7 +8,8 @@
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "next": "^16.4.0",
@@ -22,7 +23,8 @@
     "@types/react-dom": "^19.3.0",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": ">=24"

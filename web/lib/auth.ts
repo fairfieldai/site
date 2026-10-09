@@ -1,5 +1,6 @@
-import { User, UserManager } from "oidc-client-ts";
+import { type IdTokenClaims, User, UserManager } from "oidc-client-ts";
 
+import { jwtClaims, type Tokens } from "./cognito";
 import { loadConfig, type SiteConfig } from "./config";
 
 let manager: Promise<UserManager> | undefined;
@@ -45,6 +46,28 @@ export function safeReturnPath(path: unknown): string {
 /** Signs in through Cognito, then returns to `returnTo` (a path on this site). */
 export async function signIn(returnTo = "/"): Promise<void> {
   await (await userManager()).signinRedirect({ state: safeReturnPath(returnTo) });
+}
+
+/** The /join/ page, where visitors sign up or in with an emailed code, returning to `returnTo`. */
+export function joinPath(returnTo = "/"): string {
+  const path = safeReturnPath(returnTo);
+  return path === "/" ? "/join/" : `/join/?next=${encodeURIComponent(path)}`;
+}
+
+/** Keeps the tokens from a /join/ sign-in, so the session works like one from managed login. */
+export async function storeTokens(tokens: Tokens): Promise<void> {
+  await (
+    await userManager()
+  ).storeUser(
+    new User({
+      id_token: tokens.IdToken,
+      access_token: tokens.AccessToken,
+      refresh_token: tokens.RefreshToken,
+      token_type: tokens.TokenType,
+      profile: jwtClaims(tokens.IdToken) as IdTokenClaims,
+      expires_at: Math.floor(Date.now() / 1000) + tokens.ExpiresIn,
+    }),
+  );
 }
 
 /** Finishes sign-in and returns the path to go back to. */
