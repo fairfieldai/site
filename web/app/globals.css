@@ -179,6 +179,7 @@ a:hover {
 
 .eyebrow::before {
   content: "";
+  flex-shrink: 0;
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
