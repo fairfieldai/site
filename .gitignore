@@ -12,3 +12,6 @@ target/
 
 # Local runtime config for `pnpm dev` (the deploy writes the real one)
 web/public/config.json
+
+# Playwright MCP snapshots, screenshots, and console logs
+.playwright-mcp/
