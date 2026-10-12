@@ -21,6 +21,7 @@ Guidance for Claude Code in this repository.
 cd web && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build
 cd api && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && cargo deny check
 prek run --all-files
+make clean   # removes web/node_modules, web/.next, web/out, and api/target
 ```
 
 ## Constraints

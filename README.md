@@ -17,6 +17,7 @@ Requires the latest Node, pnpm, and stable Rust.
 ```sh
 cd web && pnpm install && pnpm dev    # http://localhost:3000
 cd api && cargo test
+make clean                            # remove node_modules and build output
 ```
 
 Sign-in uses Cognito managed login. For `pnpm dev`, point the site at the dev
